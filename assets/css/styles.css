@@ -1,0 +1,179 @@
+/*=============== VARIABLES CSS ===============*/
+:root {
+  /*========== Colors ==========*/
+  /*Color mode HSL(hue, saturation, lightness)*/
+  --first-color: hsl(46, 86%, 56%); /* Changed to gold color */
+  --icon-color: hsl(234, 12%, 24%);
+  --body-color: hsl(234, 48%, 97%);
+  --container-color: hsl(234, 100%, 99%);
+  --glow-color-white: rgba(255, 255, 255, 0.5); /* Adjusted glow color to white */
+  --glow-color-gold: rgba(212, 175, 55, 0.5); /* Adjusted to gold color */
+}
+
+/*=============== BASE ===============*/
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  text-decoration: none;
+}
+
+/*=============== BUTTON ===============*/
+.floating {
+  position: fixed;
+  bottom: 20px; /* Adjust as needed */
+  right: 20px; /* Adjust as needed */
+}
+.floating__container {
+  position: relative;
+}
+.floating__toggle, .floating__icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background-color: var(--first-color); /* Changed to gold color */
+  box-shadow: var(--glow-color-gold), var(--glow-color-white); /* Adjusted glow color */
+}
+.floating__toggle {
+  width: 70px;
+  height: 70px;
+  font-size: 2rem;
+  color: var(--icon-color);
+  position: relative;
+  z-index: 10;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease-in-out, transform 0.3s;
+}
+.floating__toggle i {
+  transition: transform 0.8s ease-in-out;
+}
+.floating__toggle:hover {
+  box-shadow: var(--glow-color-gold), var(--glow-color-white), inset 6px 6px 24px hsl(234, 48%, 98%), inset -6px -6px 24px hsl(234, 48%, 88%);
+  transform: scale(0.95);
+}
+.floating__icon, .floating__link {
+  width: 40px;
+  height: 40px;
+}
+.floating__icon {
+  font-size: 1rem;
+  color: var(--icon-color);
+  transition: box-shadow 0.3s ease-in-out;
+}
+.floating__icon:hover {
+  box-shadow: var(--glow-color-gold), var(--glow-color-white), inset 4px 4px 16px hsl(234, 48%, 98%), inset -4px -4px 16px hsl(234, 48%, 90%);
+}
+
+
+.floating__link {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+  transition: transform 0.4s ease-in-out, opacity 0.6s;
+  z-index: 1;
+}
+.floating__link:nth-child(1) {
+  transition-delay: 0.1s;
+  cursor: pointer;
+}
+
+.floating__link:nth-child(1):hover:after {
+  content: "Create a list";
+  opacity: 1;
+  visibility: visible;
+  
+}
+.floating__link:nth-child(1)::after {
+  content: "Create a list";
+  position: absolute;
+  bottom: 100%; /* Position above the element */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: black;
+  color: white;
+  padding: 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+}
+.floating__link:nth-child(2) {
+  transition-delay: 0.001s;
+  cursor: pointer;
+}
+.floating__link:nth-child(2):hover:after {
+  content: "Open a Created List";
+  opacity: 1;
+  visibility: visible;
+}
+
+.floating__link:nth-child(2)::after {
+  content: "Open a Created List";
+  position: absolute;
+  bottom: 100%; /* Position above the element */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: black;
+  color: white;
+  padding: 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+}
+
+.floating__link:nth-child(3) {
+  cursor: pointer;
+  transition-delay: 0.3s;
+}
+
+
+.floating__link:nth-child(3):hover:after {
+  content: "Rename a List";
+  opacity: 1;
+  visibility: visible;
+  
+}
+.floating__link:nth-child(3)::after {
+  content:"Rename a List";
+  position: absolute;
+  bottom: 100%; /* Position above the element */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: black;
+  color: white;
+  padding: 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+}
+
+/* Rotate toggle */
+.active.floating__toggle i {
+  transform: rotate(135deg);
+}
+
+/* Move icons */
+.active ~ ul .floating__link {
+  opacity: 1;
+}
+
+.active ~ ul .floating__link:nth-child(1) {
+  transform: translate(-3.5rem, -3.5rem); /* Adjust as needed */
+}
+
+.active ~ ul .floating__link:nth-child(2) {
+  transform: translate(-5.0rem); /* Adjust as needed */
+}
+.active ~ ul .floating__link:nth-child(3) {
+  transform: translate(0.0rem,-5.0rem); /* Adjust as needed */
+}
