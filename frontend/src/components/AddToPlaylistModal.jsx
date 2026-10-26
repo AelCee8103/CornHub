@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { X, Plus, Check } from 'lucide-react';
+import { X, Plus, Check, AlertCircle } from 'lucide-react';
 
 export default function AddToPlaylistModal({ movie, onClose }) {
     const [playlists, setPlaylists] = useState([]);
@@ -8,7 +8,9 @@ export default function AddToPlaylistModal({ movie, onClose }) {
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [creating, setCreating] = useState(false);
     const [addedIds, setAddedIds] = useState(new Set());
-    const [message, setMessage] = useState('');
+    const [message, setMessage] = useState(null);
+
+    const targetMovieId = Number(movie?.movie_id || movie?.id);
 
     useEffect(() => {
         fetchPlaylists();
@@ -17,7 +19,16 @@ export default function AddToPlaylistModal({ movie, onClose }) {
     const fetchPlaylists = async () => {
         try {
             const response = await api.get('/playlists');
-            setPlaylists(response.data);
+            const data = response.data || [];
+            setPlaylists(data);
+
+            const initialAddedIds = new Set();
+            data.forEach((pl) => {
+                if (pl.items?.some((item) => Number(item.movie_id) === targetMovieId)) {
+                    initialAddedIds.add(pl.id);
+                }
+            });
+            setAddedIds(initialAddedIds);
         } catch (err) {
             console.error('Failed to load playlists', err);
         } finally {
@@ -32,19 +43,39 @@ export default function AddToPlaylistModal({ movie, onClose }) {
         setCreating(true);
         try {
             const response = await api.post('/playlists', { name: newPlaylistName });
-            setPlaylists([response.data.playlist, ...playlists]);
+            const created = response.data.playlist;
+            setPlaylists([created, ...playlists]);
             setNewPlaylistName('');
+            setMessage({
+                type: 'success',
+                text: `Created playlist "${created.name}"`,
+            });
+            setTimeout(() => setMessage(null), 3000);
         } catch (err) {
             console.error('Failed to create playlist', err);
+            setMessage({
+                type: 'error',
+                text: 'Failed to create playlist.',
+            });
+            setTimeout(() => setMessage(null), 3000);
         } finally {
             setCreating(false);
         }
     };
 
     const handleAddToPlaylist = async (playlistId) => {
+        if (addedIds.has(playlistId)) {
+            setMessage({
+                type: 'info',
+                text: `"${movie?.title}" is already in this playlist.`,
+            });
+            setTimeout(() => setMessage(null), 3500);
+            return;
+        }
+
         try {
-            await api.post(`/playlists/${playlistId}/movies`, {
-                movie_id: movie.id || movie.movie_id,
+            const response = await api.post(`/playlists/${playlistId}/movies`, {
+                movie_id: targetMovieId,
                 title: movie.title,
                 poster_path: movie.poster_path,
                 vote_average: movie.vote_average,
@@ -52,10 +83,31 @@ export default function AddToPlaylistModal({ movie, onClose }) {
             });
 
             setAddedIds((prev) => new Set(prev).add(playlistId));
-            setMessage('Movie added to playlist!');
-            setTimeout(() => setMessage(''), 2500);
+
+            if (response.data.already_exists) {
+                setMessage({
+                    type: 'info',
+                    text: `"${movie?.title}" is already in this playlist.`,
+                });
+            } else {
+                setMessage({
+                    type: 'success',
+                    text: `Added "${movie?.title}" to playlist!`,
+                });
+                setPlaylists((prev) =>
+                    prev.map((pl) =>
+                        pl.id === playlistId ? { ...pl, items_count: (pl.items_count || 0) + 1 } : pl
+                    )
+                );
+            }
+            setTimeout(() => setMessage(null), 3500);
         } catch (err) {
             console.error('Failed to add movie to playlist', err);
+            setMessage({
+                type: 'error',
+                text: err.response?.data?.message || 'Failed to add movie to playlist.',
+            });
+            setTimeout(() => setMessage(null), 3500);
         }
     };
 
@@ -75,8 +127,23 @@ export default function AddToPlaylistModal({ movie, onClose }) {
                 </p>
 
                 {message && (
-                    <div className="mb-4 p-2.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-xs rounded-lg flex items-center gap-2">
-                        <Check className="w-4 h-4" /> {message}
+                    <div
+                        className={`mb-4 p-3 border text-xs rounded-xl flex items-center gap-2.5 transition-all shadow-sm ${
+                            message.type === 'info' || message.type === 'warning'
+                                ? 'bg-amber-950/80 border-amber-600/50 text-amber-200'
+                                : message.type === 'error'
+                                ? 'bg-red-950/80 border-red-800 text-red-200'
+                                : 'bg-emerald-950/80 border-emerald-600/50 text-emerald-200'
+                        }`}
+                    >
+                        {message.type === 'info' || message.type === 'warning' ? (
+                            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                        ) : message.type === 'error' ? (
+                            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                        ) : (
+                            <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+                        )}
+                        <span className="font-medium">{message.text}</span>
                     </div>
                 )}
 
@@ -121,15 +188,15 @@ export default function AddToPlaylistModal({ movie, onClose }) {
                                     </div>
                                     <button
                                         onClick={() => handleAddToPlaylist(pl.id)}
-                                        disabled={isAdded}
-                                        className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-colors ${
+                                        className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
                                             isAdded
-                                                ? 'bg-emerald-600/30 text-emerald-300'
-                                                : 'bg-amber-500 hover:bg-amber-600 text-black cursor-pointer'
+                                                ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30'
+                                                : 'bg-amber-500 hover:bg-amber-600 text-black'
                                         }`}
+                                        title={isAdded ? 'Already in this playlist. Click to view notification.' : 'Add to playlist'}
                                     >
-                                        {isAdded ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                                        <span>{isAdded ? 'Added' : 'Add'}</span>
+                                        {isAdded ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Plus className="w-3.5 h-3.5" />}
+                                        <span>{isAdded ? 'In Playlist' : 'Add'}</span>
                                     </button>
                                 </div>
                             );

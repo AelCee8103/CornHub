@@ -1,6 +1,8 @@
-# CornHub - Movie Discovery & Watchlist Web Application
+# CornHub - Movie Listing & Discovery Web Application
 
-A full-stack movie discovery, watchlist, and custom playlist management web application powered by **PHP**, **MySQL**, and **The Movie Database (TMDB) API**.
+**CornHub** is a modern, full-stack movie listing and discovery web application. It enables users to explore trending and top-rated movies, search films in real-time, view detailed movie metadata, and organize their favorite titles with personal watchlists and custom-curated playlists.
+
+Built with a decoupled client-server architecture, CornHub features a responsive **React (Vite)** single-page application frontend and a robust **Laravel** RESTful API backend powered by **The Movie Database (TMDB) API**.
 
 ---
 
@@ -8,273 +10,314 @@ A full-stack movie discovery, watchlist, and custom playlist management web appl
 1. [Project Overview](#-project-overview)
 2. [Key Features](#-key-features)
 3. [Tech Stack](#-tech-stack)
-4. [Project Architecture & File Structure](#-project-architecture--file-structure)
-5. [Database Schema & SQL Script](#-database-schema--sql-script)
-6. [Local Setup & Installation Guide](#-local-setup--installation-guide)
-7. [Deployment Guide (Live Portfolio Demo)](#-deployment-guide-for-portfolio-demo)
-8. [API Configuration](#-api-configuration)
-9. [Recommended Enhancements & Best Practices](#-recommended-enhancements--best-practices)
+4. [Architecture & System Design](#-architecture--system-design)
+5. [Project Structure](#-project-structure)
+6. [Database Schema](#-database-schema)
+7. [API Reference](#-api-reference)
+8. [Getting Started & Local Setup](#-getting-started--local-setup)
+   - [Prerequisites](#prerequisites)
+   - [Backend Setup (Laravel)](#backend-setup-laravel)
+   - [Frontend Setup (React + Vite)](#frontend-setup-react--vite)
+9. [Environment Configuration](#-environment-configuration)
 
 ---
 
 ## 🍿 Project Overview
 
-**CornHub** is an interactive movie platform where users can explore trending and popular movies in real-time, search for films, view detailed descriptions, ratings, and trailers, and manage personal watchlists and custom-curated movie playlists.
+CornHub serves as a central movie directory and catalog platform. Users can browse movies by genre, sort by popularity or release date, search titles dynamically, and inspect comprehensive movie details such as plot synopses, user ratings, cast information, and official trailers. 
 
-The application combines a dynamic frontend interface (HTML5, CSS3/SCSS, Vanilla JavaScript with AJAX) with a PHP backend and a MySQL database for user authentication, session control, and persistent playlist management.
+Registered users have access to personal curation tools:
+- **Watchlist**: Quick-bookmarking system for keeping track of films to watch.
+- **Custom Playlists**: Create themed lists (e.g., *"Weekend Marathons"*, *"Favorite Sci-Fi"*), add or remove movies, and manage playlists.
+
+*Note: CornHub is strictly a movie listing, discovery, and cataloging application.*
 
 ---
 
 ## ✨ Key Features
 
-- **🎬 Live Movie Discovery**: Fetches top popular, trending, and highly-rated movies in real-time using TMDB API.
-- **🔍 Real-Time Movie Search**: Instant search-as-you-type querying the TMDB database.
-- **📄 Detailed Movie Page**: Full movie information including poster, genres, synopsis, ratings, and release dates.
-- **🔐 User Authentication**:
-  - Secure registration and login flow.
-  - PHP session-backed state management across pages.
-  - Protected operations for managing lists and watchlists.
-- **🛡️ Account Recovery**: Password reset workflow with personal security questions.
-- **⭐ Personal Watchlist (Favorites)**: Add, view, delete, or clear movies in a dedicated favorites view.
-- **📁 Custom Movie Playlists**: Create multiple custom-named lists (e.g., "Weekend Marathon", "Sci-Fi Classics"), add/remove movies, and rename or delete lists.
+- **🎬 Dynamic Movie Discovery**: Browse popular, top-rated, and recently released movies fetched in real-time via TMDB.
+- **🏷️ Genre & Sort Filtering**: Filter movie listings by official genres (Action, Drama, Sci-Fi, Comedy, etc.) and sort by popularity, rating, or release date.
+- **🔍 Instant Search**: Real-time search functionality allowing users to find movies by keyword/title.
+- **📄 Comprehensive Movie Details**: Modal view displaying detailed synopses, genres, runtime, release date, rating scores, poster/backdrop imagery, and official YouTube trailers.
+- **🔐 Secure User Authentication**:
+  - User registration and login powered by **Laravel Sanctum**.
+  - Token-based API authentication (`Bearer <token>`).
+  - Client-side session persistence and automatic token refresh/expiration cleanup.
+  - Route protection for authenticated user views.
+- **⭐ Personal Watchlist**: Add/remove movies to a dedicated personal watchlist with instantaneous status indicators.
+- **📁 Custom Movie Playlists**: Create, rename, and delete custom playlists, and add or remove movies from specific playlists with interactive modals.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: HTML5, CSS3, SCSS, Vanilla JavaScript (ES6, AJAX / `XMLHttpRequest`), Remixicon, FontAwesome.
-- **Backend**: PHP 7.4 / 8.x (Session management, MySQLi prepared statements).
-- **Database**: MySQL / MariaDB (Relational schema with 5 dedicated tables).
-- **External API**: [The Movie Database (TMDB) API v3](https://www.themoviedb.org/documentation/api).
+### Frontend
+- **Framework / Library**: [React 19](https://react.dev/) (Single Page Application)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Routing**: [React Router v7](https://reactrouter.com/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **HTTP Client**: [Axios](https://axios-http.com/) (configured with request/response interceptors)
+- **State Management**: React Context API (`AuthContext`)
+
+### Backend
+- **Framework**: [Laravel 11 / 12](https://laravel.com/) (RESTful API architecture)
+- **Language**: PHP 8.2+
+- **Authentication**: [Laravel Sanctum](https://laravel.com/docs/sanctum) (API Token Authentication)
+- **ORM**: Eloquent ORM
+- **HTTP Client**: Laravel HTTP Client (Guzzle wrapper)
+
+### Database
+- **DBMS**: MySQL / MariaDB (or SQLite for local development)
+
+### External Services
+- **Data Source**: [The Movie Database (TMDB) API v3](https://developer.themoviedb.org/docs) (proxied securely through Laravel backend)
 
 ---
 
-## 📂 Project Architecture & File Structure
+## 🏗️ Architecture & System Design
+
+CornHub is engineered with a **Decoupled Client-Server (SPA + REST API)** architecture:
+
+```text
+┌───────────────────────────────────────────────┐
+│              Client (Frontend)                │
+│       React 19 + Vite + Tailwind CSS          │
+│   (Context API, Axios Interceptors, Router)   │
+└───────────────────────┬───────────────────────┘
+                        │ HTTP / JSON Requests
+                        │ (Bearer Token Authentication)
+                        ▼
+┌───────────────────────────────────────────────┐
+│              Server (Backend)                 │
+│         Laravel RESTful API (Sanctum)         │
+├───────────────────────┬───────────────────────┤
+│    Internal Data      │    External Proxy     │
+│   (Auth, Watchlist,   │  (Movie Discovery &   │
+│      Playlists)       │     Search APIs)      │
+└───────────┬───────────┴───────────┬───────────┘
+            │                       │
+            ▼                       ▼
+┌───────────────────────┐   ┌───────────────────┐
+│    Database (MySQL)   │   │     TMDB API      │
+│ (Users, Playlists,    │   │  (Movie Metadata, │
+│      Watchlist)       │   │  Genres, Images)  │
+└───────────────────────┘   └───────────────────┘
+```
+
+1. **Client Tier**: React SPA handles UI rendering, client-side routing, and local authentication state. All API communication uses Axios with interceptors that automatically attach authentication tokens to protected requests.
+2. **API Gateway / Controller Tier**: Laravel API controllers validate incoming payload, enforce Sanctum token middleware, and handle business logic.
+3. **TMDB Proxy**: The backend acts as a proxy for TMDB requests, keeping TMDB API credentials secure on the server.
+4. **Persistence Tier**: Eloquent ORM models manage database interactions with relational integrity and cascade deletions.
+
+---
+
+## 📂 Project Structure
 
 ```text
 CornHub/
-├── assets/
-│   ├── css/styles.css           # Global stylesheets
-│   ├── js/main.js               # Main frontend UI logic
-│   └── scss/styles.scss         # SCSS source styling
-├── images/                      # Static logos, icons, and graphics
-│   ├── CornHub_Logo.png
-│   ├── deleteIcon.png
-│   └── editIcon.png
+├── backend/                             # Laravel Backend (REST API)
+│   ├── app/
+│   │   ├── Http/
+│   │   │   └── Controllers/
+│   │   │       ├── AuthController.php       # User registration, login, logout, me
+│   │   │       ├── MovieController.php      # TMDB discovery, search, genres, details proxy
+│   │   │       ├── PlaylistController.php   # Custom playlist & item management
+│   │   │       └── WatchlistController.php  # User watchlist CRUD
+│   │   └── Models/
+│   │       ├── User.php                     # User model & relationships
+│   │       ├── Playlist.php                 # Playlist entity model
+│   │       ├── PlaylistItem.php             # Pivot/item model for playlist movies
+│   │       └── Watchlist.php                # Watchlist entity model
+│   ├── config/
+│   │   └── services.php                 # TMDB API keys and configuration
+│   ├── database/
+│   │   └── migrations/                  # Database migration files
+│   ├── routes/
+│   │   └── api.php                      # Public & Sanctum protected API routes
+│   ├── .env.example                     # Backend environment configuration template
+│   └── composer.json                    # PHP dependencies
 │
-├── index.php                    # Home page (Movie discovery, search, user session header)
-├── moviePage.php                # Individual movie detail page
-├── myList.php                   # Custom created lists management page
-├── myfav.php                    # User personal watchlist/favorites page
-├── login.php                    # Login form view
-├── signup.html / signup.php     # Registration views & processing
-├── account_recovery.php         # Security question validation interface
-├── accountRecovery2.php         # Password reset interface
-├── passChange.php               # Password update confirmation page
-├── in_out.php                   # Authentication route switcher (Login vs Logout)
-├── logout.php                   # Session termination endpoint
-├── back.php                     # Navigation history controller
+├── frontend/                            # React Frontend (SPA)
+│   ├── public/                          # Static assets and icons
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AddToPlaylistModal.jsx   # Modal for adding movie to user's playlists
+│   │   │   ├── MovieCard.jsx            # Reusable movie card component with actions
+│   │   │   ├── MovieModal.jsx           # Detailed movie view (synopsis, trailer, ratings)
+│   │   │   ├── Navbar.jsx               # Navigation bar, search input, auth links
+│   │   │   └── ProtectedRoute.jsx       # Route guard for authenticated views
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx          # Authentication provider and hook (`useAuth`)
+│   │   ├── pages/
+│   │   │   ├── Home.jsx                 # Discovery, genre filters, and search results
+│   │   │   ├── Login.jsx                # User login view
+│   │   │   ├── PlaylistsPage.jsx        # Playlist management page
+│   │   │   ├── Register.jsx             # User registration view
+│   │   │   └── WatchlistPage.jsx        # User personal watchlist view
+│   │   ├── services/
+│   │   │   └── api.js                   # Central Axios client with interceptors
+│   │   ├── App.jsx                      # App router and layout wrapper
+│   │   ├── index.css                    # Tailwind CSS configuration and global styles
+│   │   └── main.jsx                     # Application entry point
+│   ├── package.json                     # Node.js dependencies and scripts
+│   └── vite.config.js                   # Vite configuration
 │
-├── addMovie.php                 # Backend endpoint: Add movie to Watchlist
-├── addMovieToCreatedList.php    # Backend endpoint: Add movie to custom playlist
-├── check_answers.php            # Backend endpoint: Verify security questions
-├── check_list_name.php          # Backend endpoint: Validate playlist uniqueness
-├── check_session.php            # Backend endpoint: Check active user session
-├── clearAllMovies.php           # Backend endpoint: Clear all movies in watchlist
-├── clearMyListMovies.php        # Backend endpoint: Clear movies in custom playlist
-├── create_account.php           # Backend endpoint: Register user & security answers
-├── deleteList.php               # Backend endpoint: Delete custom playlist & its movies
-├── deleteMovie.php              # Backend endpoint: Remove movie from watchlist
-├── deleteMyListMovie.php        # Backend endpoint: Remove movie from custom playlist
-├── fetch_lists.php              # Backend endpoint: Fetch user playlists (HTML format)
-├── fetch_my_lists.php           # Backend endpoint: Fetch user playlists (JSON/Modal)
-├── fetch_playlists.php          # Backend endpoint: Fetch playlists for dropdown
-├── get_watchlist.php            # Backend endpoint: Retrieve watchlist movie keys
-├── login_session.php            # Backend endpoint: Handle login session creation
-├── movkeysession.php            # Backend endpoint: Session movie key tracking
-├── populate_lists.php           # Backend endpoint: Populate list items
-├── retrieveFavorites.php        # Backend endpoint: Retrieve watchlist entries
-├── retrieveMyListMovies.php     # Backend endpoint: Retrieve movies in a list
-├── save_list.php                # Backend endpoint: Create new custom playlist
-├── update_list_name.php         # Backend endpoint: Rename playlist
-├── update_password.php          # Backend endpoint: Update user password in database
-├── validate_login.php           # Backend endpoint: Validate login credentials
-└── wlist_isLogin.php            # Backend endpoint: Guard check for list access
+└── README.md                            # Project documentation
 ```
 
 ---
 
-## 🗄️ Database Schema & SQL Script
+## 🗄️ Database Schema
 
-To set up the database, create a database named `corn_hub` and run the following SQL script:
+The database schema is managed via Laravel database migrations:
 
-```sql
-CREATE DATABASE IF NOT EXISTS `corn_hub` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `corn_hub`;
-
--- 1. Accounts Table: stores user credentials
-CREATE TABLE IF NOT EXISTS `accounts` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `email` VARCHAR(255) NOT NULL UNIQUE,
-    `username` VARCHAR(100) NOT NULL,
-    `password` VARCHAR(255) NOT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 2. Recovery Table: stores security questions for account recovery
-CREATE TABLE IF NOT EXISTS `recovery_table` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `accounts` VARCHAR(255) NOT NULL,
-    `question1_Answer` VARCHAR(255) NOT NULL,
-    `question2_Answer` VARCHAR(255) NOT NULL,
-    FOREIGN KEY (`accounts`) REFERENCES `accounts`(`email`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 3. Watchlist Table: stores personal movie favorites
-CREATE TABLE IF NOT EXISTS `watchlist` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `email` VARCHAR(255) NOT NULL,
-    `movieKey` INT NOT NULL,
-    `added_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 4. Created List Table: stores custom user playlists
-CREATE TABLE IF NOT EXISTS `createdlist` (
-    `listID` INT AUTO_INCREMENT PRIMARY KEY,
-    `email` VARCHAR(255) NOT NULL,
-    `listName` VARCHAR(255) NOT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 5. Created List Movies Table: stores movies mapped to custom playlists
-CREATE TABLE IF NOT EXISTS `createdlistmovies` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `listID` INT NOT NULL,
-    `email` VARCHAR(255) NOT NULL,
-    `movieKey` INT NOT NULL,
-    FOREIGN KEY (`listID`) REFERENCES `createdlist`(`listID`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
+- **`users`**: Stores user account credentials (`id`, `name`, `email`, `password`, `timestamps`).
+- **`personal_access_tokens`**: Manages Sanctum Bearer tokens for API sessions.
+- **`watchlists`**: Stores bookmarked movies associated with a user (`id`, `user_id`, `movie_id`, `title`, `poster_path`, `vote_average`, `release_date`, `timestamps`).
+- **`playlists`**: Stores custom playlist metadata (`id`, `user_id`, `name`, `description`, `timestamps`).
+- **`playlist_items`**: Stores movies mapped to a specific playlist (`id`, `playlist_id`, `movie_id`, `title`, `poster_path`, `vote_average`, `release_date`, `timestamps`).
 
 ---
 
-## 💻 Local Setup & Installation Guide
+## 🔌 API Reference
 
-### Option 1: Using XAMPP / WampServer (Recommended for Windows)
+### Movie Discovery & Search (Public)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/movies/discover` | Discover movies with pagination, genre filtering (`with_genres`), and sorting (`sort_by`). |
+| `GET` | `/api/movies/search` | Search movies by title keyword (`query`, `page`). |
+| `GET` | `/api/movies/genres` | Retrieve official movie genre list from TMDB. |
+| `GET` | `/api/movies/{id}` | Get full details for a movie (includes trailers and similar movies). |
 
-1. **Install XAMPP**:
-   - Download and install [XAMPP](https://www.apachefriends.org/).
-   - Start **Apache** and **MySQL** modules from the XAMPP Control Panel.
+### Authentication (Public)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/register` | Register a new user (`name`, `email`, `password`, `password_confirmation`). |
+| `POST` | `/api/login` | Authenticate user and receive a Sanctum Bearer token. |
 
-2. **Place Project in Web Directory**:
-   - Copy or move the `CornHub` directory to your web root:
-     - Windows: `C:\xampp\htdocs\CornHub`
-     - macOS: `/Applications/XAMPP/xamppfiles/htdocs/CornHub`
-     - Linux: `/opt/lampp/htdocs/CornHub`
-
-3. **Import Database**:
-   - Open your browser and go to `http://localhost/phpmyadmin`.
-   - Click **New** in the left sidebar, enter database name `corn_hub`, and click **Create**.
-   - Select the `corn_hub` database, navigate to the **SQL** tab, paste the SQL schema from above, and click **Go**.
-
-4. **Verify Database Configuration**:
-   - Default PHP backend files connect with:
-     - Host: `localhost`
-     - User: `root`
-     - Password: `""` (empty)
-     - Database: `corn_hub`
-     - Port: `3306`
-
-5. **Run Application**:
-   - Visit: `http://localhost/CornHub/`
+### Protected Routes (Requires `Authorization: Bearer <token>`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/user` | Get profile information of the currently authenticated user. |
+| `POST` | `/api/logout` | Revoke current user authentication token. |
+| `GET` | `/api/watchlist` | Retrieve all movies in user's watchlist. |
+| `POST` | `/api/watchlist` | Add a movie to user's watchlist. |
+| `GET` | `/api/watchlist/check/{movieId}` | Check if a specific movie exists in watchlist. |
+| `DELETE` | `/api/watchlist/{movieId}` | Remove a movie from watchlist. |
+| `GET` | `/api/playlists` | List all custom playlists created by user (with movie count). |
+| `POST` | `/api/playlists` | Create a new custom playlist. |
+| `GET` | `/api/playlists/{id}` | Retrieve playlist details and its list of movies. |
+| `PUT` | `/api/playlists/{id}` | Update playlist name or description. |
+| `DELETE` | `/api/playlists/{id}` | Delete a playlist and its mapped items. |
+| `POST` | `/api/playlists/{id}/movies` | Add a movie to a playlist. |
+| `DELETE` | `/api/playlists/{id}/movies/{movieId}` | Remove a movie from a playlist. |
 
 ---
 
-### Option 2: Using Built-in PHP Server & Local MySQL CLI
+## 💻 Getting Started & Local Setup
 
-1. Ensure **PHP 7.4+** and **MySQL** are installed on your machine.
-2. Initialize MySQL and create the schema using the SQL script above.
-3. Open a terminal in the project root:
+### Prerequisites
+Make sure you have the following installed on your machine:
+- **PHP 8.2+** and **Composer**
+- **Node.js 18+** and **npm**
+- **MySQL / MariaDB** (or SQLite)
+- **TMDB API Key** ([Get a free key here](https://www.themoviedb.org/settings/api))
+
+---
+
+### Backend Setup (Laravel)
+
+1. Open a terminal and navigate to the `backend` directory:
    ```bash
-   php -S localhost:8000
-   ```
-4. Open your browser at `http://localhost:8000`.
-
----
-
-## 🚀 Deployment Guide for Portfolio Demo
-
-To share this project as a live portfolio demo link, follow one of the methods below:
-
-### Option A: Free Traditional Web Hosting (Easiest & Free)
-
-Free PHP/MySQL web hosts allow you to upload PHP files and connect to a free MySQL database with phpMyAdmin:
-
-1. **Recommended Free Providers**:
-   - [InfinityFree](https://www.infinityfree.com/) (Free unlimited hosting, MySQL database, cPanel, phpMyAdmin).
-   - [000webhost](https://www.000webhost.com/) by Hostinger.
-
-2. **Step-by-step Setup on InfinityFree**:
-   - Create a free account on [InfinityFree](https://www.infinityfree.com/) and register a free subdomain (e.g. `cornhub-demo.infinityfreeapp.com`).
-   - Log into the Control Panel (cPanel) and open **MySQL Databases**.
-   - Create a database (e.g., `epiz_XXXXX_corn_hub`). Note your database hostname (e.g., `sqlXXX.infinityfree.com`), username, and password.
-   - Open **phpMyAdmin** from cPanel, select your database, and run the SQL creation script from this README.
-   - Update database credentials in the PHP files (replace `localhost`, `root`, `""`, `corn_hub` with your hosting credentials).
-   - Use the **File Manager** or an FTP client (FileZilla) to upload all project files to the `htdocs` folder.
-   - Your live portfolio demo link is ready at: `http://your-subdomain.infinityfreeapp.com`.
-
----
-
-### Option B: Cloud Containers / PaaS (Docker + Render / Railway / Fly.io)
-
-For modern cloud container hosting with automated Git deployments:
-
-1. **Create a `Dockerfile` in the project root**:
-   ```dockerfile
-   FROM php:8.1-apache
-   RUN docker-php-ext-install mysqli pdo pdo_mysql
-   COPY . /var/www/html/
-   EXPOSE 80
+   cd backend
    ```
 
-2. **Create a Managed MySQL Database**:
-   - Use [Aiven](https://aiven.io/), [PlanetScale](https://planetscale.com/), or [Railway MySQL](https://railway.app/) for a free-tier managed MySQL instance.
-   - Run the SQL script on the remote MySQL database.
+2. Install PHP dependencies:
+   ```bash
+   composer install
+   ```
 
-3. **Deploy on Render / Railway**:
-   - Push your repository to GitHub.
-   - Connect GitHub repository to [Render](https://render.com/) or [Railway](https://railway.app/).
-   - Set environment variables or update database connection parameters to point to your cloud MySQL host.
-   - Access your live SSL-enabled URL (e.g. `https://cornhub-demo.onrender.com`).
+3. Create the local environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Generate the application key:
+   ```bash
+   php artisan key:generate
+   ```
+
+5. Configure database and TMDB credentials in `backend/.env`:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=corn_hub
+   DB_USERNAME=root
+   DB_PASSWORD=
+
+   # TMDB Configuration
+   TMDB_API_KEY=your_tmdb_api_key_here
+   TMDB_BASE_URL=https://api.themoviedb.org/3
+   ```
+
+6. Run database migrations:
+   ```bash
+   php artisan migrate
+   ```
+
+7. Start the Laravel development server:
+   ```bash
+   php artisan serve
+   ```
+   *The backend API will run at `http://127.0.0.1:8000`.*
 
 ---
 
-## 🔑 API Configuration
+### Frontend Setup (React + Vite)
 
-This project uses **The Movie Database (TMDB) API** to retrieve movie data, images, and search results.
+1. Open a separate terminal and navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
 
-- The API key is configured inside `script.js` and `moviePage.js`:
-  ```javascript
-  const APIKEY = 'api_key=YOUR_TMDB_API_KEY';
-  ```
-- To use your own API key:
-  1. Create a free account at [TheMovieDB.org](https://www.themoviedb.org/).
-  2. Navigate to **Settings > API** and generate an API Key.
-  3. Replace the `APIKEY` string in `script.js` and `moviePage.js`.
+2. Install Node dependencies:
+   ```bash
+   npm install
+   ```
+
+3. *(Optional)* Configure the API base URL in `frontend/.env`:
+   ```env
+   VITE_API_BASE_URL=http://127.0.0.1:8000/api
+   ```
+
+4. Start the Vite development server:
+   ```bash
+   npm run dev
+   ```
+   *The frontend application will run at `http://localhost:5173`.*
 
 ---
 
-## 💡 Recommended Enhancements & Best Practices
+## ⚙️ Environment Configuration
 
-Before showcasing in technical interviews, consider the following improvements:
+### Backend (`backend/.env`)
+| Variable | Description |
+| :--- | :--- |
+| `APP_URL` | Base URL for the Laravel backend (e.g. `http://localhost:8000`). |
+| `DB_CONNECTION` | Database driver (`mysql` or `sqlite`). |
+| `DB_DATABASE` | Database name. |
+| `TMDB_API_KEY` | TMDB API v3 developer key used for fetching movie listings and details. |
+| `TMDB_BASE_URL` | TMDB API base endpoint (default: `https://api.themoviedb.org/3`). |
 
-1. **Centralize Database Configuration**:
-   - Consolidate repetitive `$servername`, `$username`, `$password` connection declarations across individual PHP files into a single `config/db.php` helper file.
-2. **Environment Variables**:
-   - Use `.env` or server environment variables (`getenv()`) for database credentials and TMDB API keys instead of hardcoding.
-3. **Password Security**:
-   - Upgrade plain-text / escaped password storage to secure PHP hashing:
-     - Registration: `password_hash($password, PASSWORD_BCRYPT)`
-     - Authentication: `password_verify($password, $hashedPassword)`
-4. **Prepared Statements Consistency**:
-   - Ensure all queries (e.g. in `check_answers.php`, `fetch_lists.php`) strictly use parameterized prepared statements (`$stmt->prepare()`) to prevent SQL injection.
+### Frontend (`frontend/.env`)
+| Variable | Description |
+| :--- | :--- |
+| `VITE_API_BASE_URL` | Base URL pointing to the Laravel API (e.g. `http://127.0.0.1:8000/api`). |
+
+---
+
+## 📄 License
+This project is open-source and available under the [MIT License](LICENSE).

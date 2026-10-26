@@ -12,7 +12,11 @@ class PlaylistController extends Controller
      */
     public function index(Request $request)
     {
-        $playlists = $request->user()->playlists()->withCount('items')->latest()->get();
+        $playlists = $request->user()->playlists()
+            ->withCount('items')
+            ->with('items:id,playlist_id,movie_id')
+            ->latest()
+            ->get();
 
         return response()->json($playlists);
     }
@@ -91,13 +95,21 @@ class PlaylistController extends Controller
             'release_date' => 'nullable|string',
         ]);
 
-        $item = $playlist->items()->firstOrCreate(
-            ['movie_id' => $validated['movie_id']],
-            $validated
-        );
+        $existing = $playlist->items()->where('movie_id', $validated['movie_id'])->first();
+
+        if ($existing) {
+            return response()->json([
+                'message' => 'This movie has already been added to this playlist',
+                'already_exists' => true,
+                'item' => $existing,
+            ], 200);
+        }
+
+        $item = $playlist->items()->create($validated);
 
         return response()->json([
             'message' => 'Movie added to playlist',
+            'already_exists' => false,
             'item' => $item,
         ], 201);
     }
