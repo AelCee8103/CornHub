@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import api from '../services/api';
+import { discoverMovies, getGenres, searchMovies } from '../services/movies';
+import { addToWatchlist, listWatchlist, removeFromWatchlist } from '../services/userData';
 import { useAuth } from '../context/AuthContext';
 import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
@@ -29,8 +30,8 @@ export default function Home() {
     useEffect(() => {
         const fetchGenres = async () => {
             try {
-                const response = await api.get('/movies/genres');
-                setGenres(response.data.genres || []);
+                const response = await getGenres();
+                setGenres(response.genres || []);
             } catch (err) {
                 console.error('Failed to load genres', err);
             }
@@ -47,8 +48,8 @@ export default function Home() {
 
         const fetchWatchlist = async () => {
             try {
-                const response = await api.get('/watchlist');
-                const ids = new Set(response.data.map((item) => Number(item.movie_id)));
+                const data = await listWatchlist();
+                const ids = new Set(data.map((item) => Number(item.movie_id)));
                 setWatchlistIds(ids);
             } catch (err) {
                 console.error('Failed to load watchlist', err);
@@ -64,20 +65,16 @@ export default function Home() {
             try {
                 let response;
                 if (searchQuery) {
-                    response = await api.get('/movies/search', {
-                        params: { query: searchQuery, page },
-                    });
+                    response = await searchMovies({ query: searchQuery, page });
                 } else {
-                    response = await api.get('/movies/discover', {
-                        params: {
-                            page,
-                            sort_by: category,
-                            with_genres: selectedGenre || undefined,
-                        },
+                    response = await discoverMovies({
+                        page,
+                        sort_by: category,
+                        with_genres: selectedGenre || undefined,
                     });
                 }
-                setMovies(response.data.results || []);
-                setTotalPages(Math.min(response.data.total_pages || 1, 500));
+                setMovies(response.results || []);
+                setTotalPages(Math.min(response.total_pages || 1, 500));
             } catch (err) {
                 console.error('Failed to load movies', err);
             } finally {
@@ -100,20 +97,14 @@ export default function Home() {
 
         try {
             if (isSaved) {
-                await api.delete(`/watchlist/${movieId}`);
+                await removeFromWatchlist(movieId);
                 setWatchlistIds((prev) => {
                     const next = new Set(prev);
                     next.delete(movieId);
                     return next;
                 });
             } else {
-                await api.post('/watchlist', {
-                    movie_id: movieId,
-                    title: movie.title,
-                    poster_path: movie.poster_path,
-                    vote_average: movie.vote_average,
-                    release_date: movie.release_date,
-                });
+                await addToWatchlist(movie);
                 setWatchlistIds((prev) => new Set(prev).add(movieId));
             }
         } catch (err) {

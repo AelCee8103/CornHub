@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import {
+    addMovieToPlaylist,
+    createPlaylist,
+    listPlaylists,
+} from '../services/userData';
 import { X, Plus, Check, AlertCircle } from 'lucide-react';
 
 export default function AddToPlaylistModal({ movie, onClose }) {
@@ -18,8 +22,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
 
     const fetchPlaylists = async () => {
         try {
-            const response = await api.get('/playlists');
-            const data = response.data || [];
+            const data = await listPlaylists();
             setPlaylists(data);
 
             const initialAddedIds = new Set();
@@ -42,8 +45,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
 
         setCreating(true);
         try {
-            const response = await api.post('/playlists', { name: newPlaylistName });
-            const created = response.data.playlist;
+            const created = await createPlaylist(newPlaylistName);
             setPlaylists([created, ...playlists]);
             setNewPlaylistName('');
             setMessage({
@@ -74,17 +76,11 @@ export default function AddToPlaylistModal({ movie, onClose }) {
         }
 
         try {
-            const response = await api.post(`/playlists/${playlistId}/movies`, {
-                movie_id: targetMovieId,
-                title: movie.title,
-                poster_path: movie.poster_path,
-                vote_average: movie.vote_average,
-                release_date: movie.release_date,
-            });
+            const result = await addMovieToPlaylist(playlistId, movie);
 
             setAddedIds((prev) => new Set(prev).add(playlistId));
 
-            if (response.data.already_exists) {
+            if (result.alreadyExists) {
                 setMessage({
                     type: 'info',
                     text: `"${movie?.title}" is already in this playlist.`,
@@ -105,7 +101,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
             console.error('Failed to add movie to playlist', err);
             setMessage({
                 type: 'error',
-                text: err.response?.data?.message || 'Failed to add movie to playlist.',
+                text: err.message || 'Failed to add movie to playlist.',
             });
             setTimeout(() => setMessage(null), 3500);
         }

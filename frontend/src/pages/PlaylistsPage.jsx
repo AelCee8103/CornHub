@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import {
+    addToWatchlist,
+    createPlaylist,
+    deletePlaylist,
+    getPlaylist,
+    listPlaylists,
+    listWatchlist,
+    removeFromWatchlist,
+    removeMovieFromPlaylist,
+} from '../services/userData';
 import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
@@ -23,8 +32,8 @@ export default function PlaylistsPage() {
 
     const fetchWatchlist = async () => {
         try {
-            const response = await api.get('/watchlist');
-            const ids = new Set(response.data.map((item) => Number(item.movie_id)));
+            const data = await listWatchlist();
+            const ids = new Set(data.map((item) => Number(item.movie_id)));
             setWatchlistIds(ids);
         } catch (err) {
             console.error('Failed to load watchlist', err);
@@ -34,10 +43,10 @@ export default function PlaylistsPage() {
     const fetchPlaylists = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/playlists');
-            setPlaylists(response.data || []);
-            if (response.data?.length > 0 && !activePlaylist) {
-                fetchPlaylistDetails(response.data[0].id);
+            const data = await listPlaylists();
+            setPlaylists(data);
+            if (data.length > 0 && !activePlaylist) {
+                fetchPlaylistDetails(data[0].id);
             }
         } catch (err) {
             console.error('Failed to load playlists', err);
@@ -48,8 +57,7 @@ export default function PlaylistsPage() {
 
     const fetchPlaylistDetails = async (id) => {
         try {
-            const response = await api.get(`/playlists/${id}`);
-            setActivePlaylist(response.data);
+            setActivePlaylist(await getPlaylist(id));
         } catch (err) {
             console.error('Failed to fetch playlist details', err);
         }
@@ -61,8 +69,7 @@ export default function PlaylistsPage() {
 
         setCreating(true);
         try {
-            const response = await api.post('/playlists', { name, description });
-            const created = response.data.playlist;
+            const created = await createPlaylist(name, description);
             setPlaylists([created, ...playlists]);
             setActivePlaylist({ ...created, items: [] });
             setName('');
@@ -78,7 +85,7 @@ export default function PlaylistsPage() {
         if (!confirm('Are you sure you want to delete this playlist?')) return;
 
         try {
-            await api.delete(`/playlists/${id}`);
+            await deletePlaylist(id);
             const updated = playlists.filter((pl) => pl.id !== id);
             setPlaylists(updated);
             if (activePlaylist?.id === id) {
@@ -99,20 +106,14 @@ export default function PlaylistsPage() {
 
         try {
             if (isSaved) {
-                await api.delete(`/watchlist/${movieId}`);
+                await removeFromWatchlist(movieId);
                 setWatchlistIds((prev) => {
                     const next = new Set(prev);
                     next.delete(movieId);
                     return next;
                 });
             } else {
-                await api.post('/watchlist', {
-                    movie_id: movieId,
-                    title: movie.title,
-                    poster_path: movie.poster_path,
-                    vote_average: movie.vote_average,
-                    release_date: movie.release_date,
-                });
+                await addToWatchlist(movie);
                 setWatchlistIds((prev) => new Set(prev).add(movieId));
             }
         } catch (err) {
@@ -125,7 +126,7 @@ export default function PlaylistsPage() {
         const movieId = movie.movie_id || movie.id;
 
         try {
-            await api.delete(`/playlists/${activePlaylist.id}/movies/${movieId}`);
+            await removeMovieFromPlaylist(activePlaylist.id, movieId);
             const updatedItems = activePlaylist.items.filter((item) => (item.movie_id || item.id) !== movieId);
             setActivePlaylist((prev) => ({
                 ...prev,

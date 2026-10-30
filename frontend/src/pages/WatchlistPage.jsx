@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { listWatchlist, removeFromWatchlist } from '../services/userData';
 import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
@@ -18,8 +18,7 @@ export default function WatchlistPage() {
     const fetchWatchlist = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/watchlist');
-            setWatchlist(response.data || []);
+            setWatchlist(await listWatchlist());
         } catch (err) {
             console.error('Failed to load watchlist', err);
         } finally {
@@ -30,7 +29,7 @@ export default function WatchlistPage() {
     const handleRemoveFromWatchlist = async (movie) => {
         const movieId = movie.movie_id || movie.id;
         try {
-            await api.delete(`/watchlist/${movieId}`);
+            await removeFromWatchlist(movieId);
             setWatchlist((prev) => prev.filter((item) => (item.movie_id || item.id) !== movieId));
         } catch (err) {
             console.error('Failed to remove from watchlist', err);

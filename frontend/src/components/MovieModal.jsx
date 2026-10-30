@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import { getMovieDetails } from '../services/movies';
 import VidSrcPlayer from './VidSrcPlayer';
 import { X, Star, Calendar, Clock, Play, Video, Image as ImageIcon } from 'lucide-react';
 
@@ -14,8 +14,8 @@ export default function MovieModal({ movieId, onClose }) {
         const fetchDetails = async () => {
             setLoading(true);
             try {
-                const response = await api.get(`/movies/${movieId}`);
-                setDetails(response.data);
+                const response = await getMovieDetails(movieId);
+                setDetails(response);
                 // default to 'watch'
                 setActiveTab('watch');
             } catch (err) {
