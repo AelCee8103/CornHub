@@ -307,6 +307,7 @@ Make sure you have the following installed on your machine:
 | Variable | Description |
 | :--- | :--- |
 | `APP_URL` | Base URL for the Laravel backend (e.g. `http://localhost:8000`). |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated frontend origins allowed to call the API. |
 | `DB_CONNECTION` | Database driver (`mysql` or `sqlite`). |
 | `DB_DATABASE` | Database name. |
 | `TMDB_API_KEY` | TMDB API v3 developer key used for fetching movie listings and details. |
@@ -316,6 +317,54 @@ Make sure you have the following installed on your machine:
 | Variable | Description |
 | :--- | :--- |
 | `VITE_API_BASE_URL` | Base URL pointing to the Laravel API (e.g. `http://127.0.0.1:8000/api`). |
+
+## 🚀 Production Deployment
+
+The application is deployed as two services:
+
+1. **Railway** hosts the Laravel API and a Railway-managed MySQL database.
+2. **Vercel** hosts the React/Vite frontend.
+
+### Railway
+
+Create a Railway project from this repository, add a MySQL database, and configure the
+Laravel service with `backend` as its root directory. The checked-in
+`backend/railway.json` provides the Composer build command, health check, migration
+command, and `$PORT`-bound Laravel start command.
+
+Set these variables in the Railway service:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:your-generated-key
+APP_URL=https://your-railway-domain
+CORS_ALLOWED_ORIGINS=https://your-vercel-domain
+DB_CONNECTION=mysql
+DB_HOST=${{MySQL.MYSQLHOST}}
+DB_PORT=${{MySQL.MYSQLPORT}}
+DB_DATABASE=${{MySQL.MYSQLDATABASE}}
+DB_USERNAME=${{MySQL.MYSQLUSER}}
+DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+TMDB_API_KEY=your-tmdb-key
+TMDB_BASE_URL=https://api.themoviedb.org/3
+```
+
+Generate `APP_KEY` with `php artisan key:generate --show`. Keep `APP_KEY` and
+`TMDB_API_KEY` in Railway Variables only; do not commit them.
+
+### Vercel
+
+Import the repository into Vercel and set `frontend` as the root directory. Use the
+Vite preset with `npm run build` and `dist` as the output directory. Add this Vercel
+environment variable before deploying:
+
+```env
+VITE_API_BASE_URL=https://your-railway-domain/api
+```
+
+`frontend/vercel.json` handles client-side React Router rewrites, so routes such as
+`/watchlist` and `/playlists` continue to work after a page refresh.
 
 ---
 
