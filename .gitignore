@@ -28,6 +28,9 @@ dist-ssr
 *.sw?
 .env.local
 .env
+
+context
 cornhub-database-supabase-password.txt
-vidsrc-api-documentation.md
+context/vidsrc-api-documentation.md
+
 
