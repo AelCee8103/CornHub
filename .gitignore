@@ -29,4 +29,5 @@ dist-ssr
 .env.local
 .env
 cornhub-database-supabase-password.txt
+vidsrc-api-documentation.md
 

@@ -8,8 +8,8 @@ import { Bookmark, Film } from 'lucide-react';
 export default function WatchlistPage() {
     const [watchlist, setWatchlist] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedMovieId, setSelectedMovieId] = useState(null);
-    const [playlistMovie, setPlaylistMovie] = useState(null);
+    const [selectedMedia, setSelectedMedia] = useState(null);
+    const [playlistMedia, setPlaylistMedia] = useState(null);
 
     useEffect(() => {
         fetchWatchlist();
@@ -27,10 +27,13 @@ export default function WatchlistPage() {
     };
 
     const handleRemoveFromWatchlist = async (movie) => {
-        const movieId = movie.movie_id || movie.id;
+        const mediaId = movie.media_id || movie.movie_id || movie.id;
         try {
-            await removeFromWatchlist(movieId);
-            setWatchlist((prev) => prev.filter((item) => (item.movie_id || item.id) !== movieId));
+            await removeFromWatchlist(movie);
+            setWatchlist((prev) => prev.filter((item) =>
+                `${item.media_type || 'movie'}:${item.media_id || item.movie_id || item.id}` !==
+                `${movie.media_type || 'movie'}:${mediaId}`
+            ));
         } catch (err) {
             console.error('Failed to remove from watchlist', err);
         }
@@ -43,7 +46,7 @@ export default function WatchlistPage() {
                     <Bookmark className="w-6 h-6 text-amber-500" /> My Saved Watchlist
                 </h1>
                 <p className="text-neutral-400 text-xs mt-1">
-                    {watchlist.length} {watchlist.length === 1 ? 'movie' : 'movies'} saved for later
+                    {watchlist.length} {watchlist.length === 1 ? 'title' : 'titles'} saved for later
                 </p>
             </div>
 
@@ -55,7 +58,7 @@ export default function WatchlistPage() {
                 <div className="text-center py-20 text-neutral-400">
                     <Film className="w-12 h-12 mx-auto mb-3 opacity-40" />
                     <p className="text-base font-semibold">Your watchlist is empty</p>
-                    <p className="text-xs text-neutral-500 mt-1">Explore movies and click "Watchlist" on any card to save it here.</p>
+                    <p className="text-xs text-neutral-500 mt-1">Explore movies or series and click "Watchlist" on any card to save it here.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
@@ -63,24 +66,24 @@ export default function WatchlistPage() {
                         <MovieCard
                             key={movie.id}
                             movie={movie}
-                            onSelect={setSelectedMovieId}
+                            onSelect={setSelectedMedia}
                             isInWatchlist={true}
                             onToggleWatchlist={handleRemoveFromWatchlist}
-                            onAddToPlaylist={setPlaylistMovie}
+                            onAddToPlaylist={setPlaylistMedia}
                             onRemove={handleRemoveFromWatchlist}
                         />
                     ))}
                 </div>
             )}
 
-            {selectedMovieId && (
-                <MovieModal movieId={selectedMovieId} onClose={() => setSelectedMovieId(null)} />
+            {selectedMedia && (
+                <MovieModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />
             )}
 
-            {playlistMovie && (
+            {playlistMedia && (
                 <AddToPlaylistModal
-                    movie={playlistMovie}
-                    onClose={() => setPlaylistMovie(null)}
+                    movie={playlistMedia}
+                    onClose={() => setPlaylistMedia(null)}
                 />
             )}
         </div>

@@ -40,7 +40,7 @@ export default function Register() {
                     <h2 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
                         <UserPlus className="w-6 h-6 text-amber-500" /> Create Account
                     </h2>
-                    <p className="text-neutral-400 text-sm mt-1">Join to bookmark movies and build custom playlists</p>
+                    <p className="text-neutral-400 text-sm mt-1">Join to bookmark movies and series and build custom playlists</p>
                 </div>
 
                 {error && (

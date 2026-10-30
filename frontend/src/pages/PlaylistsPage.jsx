@@ -7,7 +7,7 @@ import {
     listPlaylists,
     listWatchlist,
     removeFromWatchlist,
-    removeMovieFromPlaylist,
+    removeMediaFromPlaylist,
 } from '../services/userData';
 import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
@@ -21,8 +21,8 @@ export default function PlaylistsPage() {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [creating, setCreating] = useState(false);
-    const [selectedMovieId, setSelectedMovieId] = useState(null);
-    const [playlistMovie, setPlaylistMovie] = useState(null);
+    const [selectedMedia, setSelectedMedia] = useState(null);
+    const [playlistMedia, setPlaylistMedia] = useState(null);
     const [watchlistIds, setWatchlistIds] = useState(new Set());
 
     useEffect(() => {
@@ -33,7 +33,7 @@ export default function PlaylistsPage() {
     const fetchWatchlist = async () => {
         try {
             const data = await listWatchlist();
-            const ids = new Set(data.map((item) => Number(item.movie_id)));
+            const ids = new Set(data.map((item) => `${item.media_type || 'movie'}:${item.media_id || item.movie_id}`));
             setWatchlistIds(ids);
         } catch (err) {
             console.error('Failed to load watchlist', err);
@@ -101,20 +101,22 @@ export default function PlaylistsPage() {
     };
 
     const handleToggleWatchlist = async (movie) => {
-        const movieId = movie.movie_id || movie.id;
-        const isSaved = watchlistIds.has(movieId);
+        const mediaId = movie.media_id || movie.movie_id || movie.id;
+        const mediaType = movie.media_type || movie.mediaType || 'movie';
+        const key = `${mediaType}:${mediaId}`;
+        const isSaved = watchlistIds.has(key);
 
         try {
             if (isSaved) {
-                await removeFromWatchlist(movieId);
+                await removeFromWatchlist(movie);
                 setWatchlistIds((prev) => {
                     const next = new Set(prev);
-                    next.delete(movieId);
+                    next.delete(key);
                     return next;
                 });
             } else {
                 await addToWatchlist(movie);
-                setWatchlistIds((prev) => new Set(prev).add(movieId));
+                setWatchlistIds((prev) => new Set(prev).add(key));
             }
         } catch (err) {
             console.error('Failed to update watchlist', err);
@@ -123,11 +125,14 @@ export default function PlaylistsPage() {
 
     const handleRemoveMovieFromPlaylist = async (movie) => {
         if (!activePlaylist) return;
-        const movieId = movie.movie_id || movie.id;
+        const mediaId = movie.media_id || movie.movie_id || movie.id;
+        const mediaType = movie.media_type || movie.mediaType || 'movie';
 
         try {
-            await removeMovieFromPlaylist(activePlaylist.id, movieId);
-            const updatedItems = activePlaylist.items.filter((item) => (item.movie_id || item.id) !== movieId);
+            await removeMediaFromPlaylist(activePlaylist.id, movie);
+            const updatedItems = activePlaylist.items.filter((item) =>
+                `${item.media_type || 'movie'}:${item.media_id || item.movie_id || item.id}` !== `${mediaType}:${mediaId}`
+            );
             setActivePlaylist((prev) => ({
                 ...prev,
                 items: updatedItems,
@@ -149,7 +154,7 @@ export default function PlaylistsPage() {
                 <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                     <List className="w-6 h-6 text-amber-500" /> Custom Playlists
                 </h1>
-                <p className="text-neutral-400 text-xs mt-1">Organize your favorite movies into themed collections</p>
+                <p className="text-neutral-400 text-xs mt-1">Organize your favorite movies and series into themed collections</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -210,7 +215,7 @@ export default function PlaylistsPage() {
                                     <div className="overflow-hidden pr-2">
                                         <h4 className="text-sm font-semibold truncate">{pl.name}</h4>
                                         <p className="text-neutral-400 text-xs truncate">
-                                            {pl.items_count ?? (activePlaylist?.id === pl.id ? activePlaylist.items?.length : 0)} movies
+                                            {pl.items_count ?? (activePlaylist?.id === pl.id ? activePlaylist.items?.length : 0)} titles
                                         </p>
                                     </div>
                                     <button
@@ -239,14 +244,14 @@ export default function PlaylistsPage() {
                                     <p className="text-neutral-400 text-xs mt-1">{activePlaylist.description}</p>
                                 )}
                                 <span className="inline-block mt-2 bg-neutral-800 text-neutral-300 text-xs px-2.5 py-0.5 rounded-full">
-                  {activePlaylist.items?.length || 0} movies
+                  {activePlaylist.items?.length || 0} titles
                 </span>
                             </div>
 
                             {!activePlaylist.items || activePlaylist.items.length === 0 ? (
                                 <div className="text-center py-20 text-neutral-400">
                                     <Film className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                                    <p className="text-sm font-semibold">No movies in this playlist yet</p>
+                                    <p className="text-sm font-semibold">No titles in this playlist yet</p>
                                     <p className="text-xs text-neutral-500 mt-1">
                                         Go to the Discover page and click the "+" icon on any movie to add it here.
                                     </p>
@@ -254,15 +259,16 @@ export default function PlaylistsPage() {
                             ) : (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                     {activePlaylist.items.map((movie) => {
-                                        const movieId = movie.movie_id || movie.id;
+                                        const mediaId = movie.media_id || movie.movie_id || movie.id;
+                                        const mediaType = movie.media_type || movie.mediaType || 'movie';
                                         return (
                                             <MovieCard
                                                 key={movie.id}
                                                 movie={movie}
-                                                onSelect={setSelectedMovieId}
-                                                isInWatchlist={watchlistIds.has(movieId)}
+                                                onSelect={setSelectedMedia}
+                                                isInWatchlist={watchlistIds.has(`${mediaType}:${mediaId}`)}
                                                 onToggleWatchlist={handleToggleWatchlist}
-                                                onAddToPlaylist={setPlaylistMovie}
+                                                onAddToPlaylist={setPlaylistMedia}
                                                 onRemove={handleRemoveMovieFromPlaylist}
                                             />
                                         );
@@ -280,15 +286,15 @@ export default function PlaylistsPage() {
                 </div>
             </div>
 
-            {selectedMovieId && (
-                <MovieModal movieId={selectedMovieId} onClose={() => setSelectedMovieId(null)} />
+            {selectedMedia && (
+                <MovieModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />
             )}
 
-            {playlistMovie && (
+            {playlistMedia && (
                 <AddToPlaylistModal
-                    movie={playlistMovie}
+                    movie={playlistMedia}
                     onClose={() => {
-                        setPlaylistMovie(null);
+                        setPlaylistMedia(null);
                         if (activePlaylist) {
                             fetchPlaylistDetails(activePlaylist.id);
                         }

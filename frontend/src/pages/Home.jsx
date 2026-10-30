@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { discoverMovies, getGenres, searchMovies } from '../services/movies';
+import { discoverMedia, getGenres, searchMedia } from '../services/movies';
 import { addToWatchlist, listWatchlist, removeFromWatchlist } from '../services/userData';
 import { useAuth } from '../context/AuthContext';
 import MovieCard from '../components/MovieCard';
@@ -12,7 +12,8 @@ export default function Home() {
     const [searchParams] = useSearchParams();
     const searchQuery = searchParams.get('query') || '';
 
-    const [movies, setMovies] = useState([]);
+    const [media, setMedia] = useState([]);
+    const [mediaType, setMediaType] = useState('movie');
     const [genres, setGenres] = useState([]);
     const [selectedGenre, setSelectedGenre] = useState('');
     const [category, setCategory] = useState('popularity.desc');
@@ -20,8 +21,8 @@ export default function Home() {
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
 
-    const [selectedMovieId, setSelectedMovieId] = useState(null);
-    const [playlistMovie, setPlaylistMovie] = useState(null);
+    const [selectedMedia, setSelectedMedia] = useState(null);
+    const [playlistMedia, setPlaylistMedia] = useState(null);
     const [watchlistIds, setWatchlistIds] = useState(new Set());
 
     const { isAuthenticated } = useAuth();
@@ -30,14 +31,14 @@ export default function Home() {
     useEffect(() => {
         const fetchGenres = async () => {
             try {
-                const response = await getGenres();
+                const response = await getGenres(mediaType);
                 setGenres(response.genres || []);
             } catch (err) {
                 console.error('Failed to load genres', err);
             }
         };
         fetchGenres();
-    }, []);
+    }, [mediaType]);
 
     // Load user's watchlist movie IDs
     useEffect(() => {
@@ -49,7 +50,7 @@ export default function Home() {
         const fetchWatchlist = async () => {
             try {
                 const data = await listWatchlist();
-                const ids = new Set(data.map((item) => Number(item.movie_id)));
+                const ids = new Set(data.map((item) => `${item.media_type || 'movie'}:${item.media_id || item.movie_id}`));
                 setWatchlistIds(ids);
             } catch (err) {
                 console.error('Failed to load watchlist', err);
@@ -65,15 +66,15 @@ export default function Home() {
             try {
                 let response;
                 if (searchQuery) {
-                    response = await searchMovies({ query: searchQuery, page });
+                    response = await searchMedia(mediaType, { query: searchQuery, page });
                 } else {
-                    response = await discoverMovies({
+                    response = await discoverMedia(mediaType, {
                         page,
                         sort_by: category,
                         with_genres: selectedGenre || undefined,
                     });
                 }
-                setMovies(response.results || []);
+                setMedia((response.results || []).map((item) => ({ ...item, mediaType })));
                 setTotalPages(Math.min(response.total_pages || 1, 500));
             } catch (err) {
                 console.error('Failed to load movies', err);
@@ -83,29 +84,29 @@ export default function Home() {
         };
 
         fetchMovies();
-    }, [searchQuery, category, selectedGenre, page]);
+    }, [searchQuery, category, selectedGenre, page, mediaType]);
 
     // Watchlist toggle handler
     const handleToggleWatchlist = async (movie) => {
         if (!isAuthenticated) {
-            alert('Please log in to add movies to your watchlist.');
+            alert(`Please log in to add ${mediaType === 'tv' ? 'series' : 'movies'} to your watchlist.`);
             return;
         }
 
-        const movieId = movie.movie_id || movie.id;
-        const isSaved = watchlistIds.has(movieId);
+        const mediaId = movie.media_id || movie.movie_id || movie.id;
+        const isSaved = watchlistIds.has(`${mediaType}:${mediaId}`);
 
         try {
             if (isSaved) {
-                await removeFromWatchlist(movieId);
+                await removeFromWatchlist(movie);
                 setWatchlistIds((prev) => {
                     const next = new Set(prev);
-                    next.delete(movieId);
+                    next.delete(`${mediaType}:${mediaId}`);
                     return next;
                 });
             } else {
                 await addToWatchlist(movie);
-                setWatchlistIds((prev) => new Set(prev).add(movieId));
+                setWatchlistIds((prev) => new Set(prev).add(`${mediaType}:${mediaId}`));
             }
         } catch (err) {
             console.error('Failed to update watchlist', err);
@@ -114,10 +115,10 @@ export default function Home() {
 
     const handleOpenPlaylistModal = (movie) => {
         if (!isAuthenticated) {
-            alert('Please log in to add movies to custom playlists.');
+            alert(`Please log in to add ${mediaType === 'tv' ? 'series' : 'movies'} to custom playlists.`);
             return;
         }
-        setPlaylistMovie(movie);
+        setPlaylistMedia(movie);
     };
 
     return (
@@ -129,16 +130,28 @@ export default function Home() {
                         {searchQuery ? (
                             <>Search Results for: <span className="text-amber-400 font-semibold">"{searchQuery}"</span></>
                         ) : (
-                            <><Sparkles className="w-6 h-6 text-amber-500" /> Discover Movies</>
+                            <><Sparkles className="w-6 h-6 text-amber-500" /> Discover {mediaType === 'tv' ? 'Series' : 'Movies'}</>
                         )}
                     </h1>
                     <p className="text-neutral-400 text-xs mt-1">
-                        Explore thousands of movies, trailers, and curated collections
+                        Explore movies, series, trailers, and curated collections
                     </p>
                 </div>
 
                 {!searchQuery && (
                     <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={mediaType}
+                            onChange={(e) => {
+                                setMediaType(e.target.value);
+                                setSelectedGenre('');
+                                setPage(1);
+                            }}
+                            className="bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-amber-500"
+                        >
+                            <option value="movie">Movies</option>
+                            <option value="tv">Series</option>
+                        </select>
                         {/* Sort Category */}
                         <select
                             value={category}
@@ -150,7 +163,9 @@ export default function Home() {
                         >
                             <option value="popularity.desc">Most Popular</option>
                             <option value="vote_average.desc&vote_count.gte=300">Top Rated</option>
-                            <option value="primary_release_date.desc">Latest Releases</option>
+                            <option value={mediaType === 'tv' ? 'first_air_date.desc' : 'primary_release_date.desc'}>
+                                Latest Releases
+                            </option>
                         </select>
 
                         {/* Genre Select */}
@@ -173,25 +188,25 @@ export default function Home() {
                 )}
             </div>
 
-            {/* Movies Grid */}
+            {/* Media Grid */}
             {loading ? (
                 <div className="flex items-center justify-center min-h-[40vh]">
                     <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-amber-500"></div>
                 </div>
-            ) : movies.length === 0 ? (
+            ) : media.length === 0 ? (
                 <div className="text-center py-20 text-neutral-400">
                     <Film className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                    <p className="text-base font-semibold">No movies found</p>
+                    <p className="text-base font-semibold">No {mediaType === 'tv' ? 'series' : 'movies'} found</p>
                     <p className="text-xs text-neutral-500 mt-1">Try searching with different keywords or genre filters.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-                    {movies.map((movie) => (
+                    {media.map((item) => (
                         <MovieCard
-                            key={movie.id}
-                            movie={movie}
-                            onSelect={setSelectedMovieId}
-                            isInWatchlist={watchlistIds.has(movie.id)}
+                            key={`${mediaType}-${item.id}`}
+                            movie={item}
+                            onSelect={setSelectedMedia}
+                            isInWatchlist={watchlistIds.has(`${mediaType}:${item.id}`)}
                             onToggleWatchlist={handleToggleWatchlist}
                             onAddToPlaylist={handleOpenPlaylistModal}
                         />
@@ -223,15 +238,15 @@ export default function Home() {
             )}
 
             {/* Movie Details Modal */}
-            {selectedMovieId && (
-                <MovieModal movieId={selectedMovieId} onClose={() => setSelectedMovieId(null)} />
+            {selectedMedia && (
+                <MovieModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />
             )}
 
             {/* Add to Playlist Modal */}
-            {playlistMovie && (
+            {playlistMedia && (
                 <AddToPlaylistModal
-                    movie={playlistMovie}
-                    onClose={() => setPlaylistMovie(null)}
+                    movie={playlistMedia}
+                    onClose={() => setPlaylistMedia(null)}
                 />
             )}
         </div>

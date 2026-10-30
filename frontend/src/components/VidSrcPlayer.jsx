@@ -8,9 +8,9 @@ const SERVERS = [
   { id: 'vidsrc.xyz', name: 'Server 4 (vidsrc.xyz)' },
 ];
 
-export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
+export default function VidSrcPlayer({ mediaType = 'movie', tmdbId, imdbId, title }) {
   const targetId = imdbId || tmdbId;
-  const storageKey = `vidsrc_progress_${targetId}`;
+  const storageKey = `vidsrc_progress_${mediaType}_${targetId}`;
 
   const [currentServer, setCurrentServer] = useState('vidsrc.sh');
   const [savedProgress, setSavedProgress] = useState(0);
@@ -56,7 +56,7 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
   if (!targetId) {
     return (
       <div className="aspect-video w-full flex items-center justify-center bg-neutral-900 text-neutral-400 text-xs">
-        Movie ID is missing for playback.
+        Media ID is missing for playback.
       </div>
     );
   }
@@ -67,7 +67,8 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
     queryParams.set('startAt', resumeAt.toString());
   }
 
-  const embedUrl = `https://${currentServer}/embed/movie/${targetId}?${queryParams.toString()}`;
+  const embedType = mediaType === 'tv' ? 'tv' : 'movie';
+  const embedUrl = `https://${currentServer}/embed/${embedType}/${targetId}?${queryParams.toString()}`;
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -89,7 +90,7 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
         <iframe
           key={`${embedUrl}-${useResume}`}
           src={embedUrl}
-          title={title || 'Movie Player'}
+          title={title || (mediaType === 'tv' ? 'TV Player' : 'Movie Player')}
           className="w-full h-full border-0"
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen

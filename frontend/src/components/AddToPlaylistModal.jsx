@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    addMovieToPlaylist,
+    addMediaToPlaylist,
     createPlaylist,
     listPlaylists,
 } from '../services/userData';
@@ -14,7 +14,8 @@ export default function AddToPlaylistModal({ movie, onClose }) {
     const [addedIds, setAddedIds] = useState(new Set());
     const [message, setMessage] = useState(null);
 
-    const targetMovieId = Number(movie?.movie_id || movie?.id);
+    const targetMediaId = Number(movie?.media_id || movie?.movie_id || movie?.id);
+    const targetMediaType = movie?.media_type || movie?.mediaType || 'movie';
 
     useEffect(() => {
         fetchPlaylists();
@@ -27,7 +28,10 @@ export default function AddToPlaylistModal({ movie, onClose }) {
 
             const initialAddedIds = new Set();
             data.forEach((pl) => {
-                if (pl.items?.some((item) => Number(item.movie_id) === targetMovieId)) {
+                if (pl.items?.some((item) =>
+                    Number(item.media_id || item.movie_id) === targetMediaId &&
+                    (item.media_type || 'movie') === targetMediaType
+                )) {
                     initialAddedIds.add(pl.id);
                 }
             });
@@ -69,26 +73,26 @@ export default function AddToPlaylistModal({ movie, onClose }) {
         if (addedIds.has(playlistId)) {
             setMessage({
                 type: 'info',
-                text: `"${movie?.title}" is already in this playlist.`,
+                text: `"${movie?.title || movie?.name}" is already in this playlist.`,
             });
             setTimeout(() => setMessage(null), 3500);
             return;
         }
 
         try {
-            const result = await addMovieToPlaylist(playlistId, movie);
+            const result = await addMediaToPlaylist(playlistId, movie);
 
             setAddedIds((prev) => new Set(prev).add(playlistId));
 
             if (result.alreadyExists) {
                 setMessage({
                     type: 'info',
-                    text: `"${movie?.title}" is already in this playlist.`,
+                    text: `"${movie?.title || movie?.name}" is already in this playlist.`,
                 });
             } else {
                 setMessage({
                     type: 'success',
-                    text: `Added "${movie?.title}" to playlist!`,
+                    text: `Added "${movie?.title || movie?.name}" to playlist!`,
                 });
                 setPlaylists((prev) =>
                     prev.map((pl) =>
@@ -119,7 +123,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
 
                 <h3 className="text-lg font-bold mb-1">Add to Playlist</h3>
                 <p className="text-neutral-400 text-xs mb-4">
-                    Select a playlist for <span className="text-amber-400 font-medium">{movie?.title}</span>
+                    Select a playlist for <span className="text-amber-400 font-medium">{movie?.title || movie?.name}</span>
                 </p>
 
                 {message && (
@@ -180,7 +184,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
                                 >
                                     <div>
                                         <h4 className="text-sm font-medium">{pl.name}</h4>
-                                        <p className="text-neutral-400 text-xs">{pl.items_count ?? 0} movies</p>
+                                        <p className="text-neutral-400 text-xs">{pl.items_count ?? 0} titles</p>
                                     </div>
                                     <button
                                         onClick={() => handleAddToPlaylist(pl.id)}

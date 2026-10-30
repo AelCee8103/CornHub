@@ -20,18 +20,26 @@ export const listWatchlist = async () => {
     return data || [];
 };
 
-export const addToWatchlist = async (movie) => {
+const getMediaId = (media) => Number(media.media_id || media.movie_id || media.id);
+const getMediaType = (media) => media.media_type || media.mediaType || 'movie';
+const getMediaTitle = (media) => media.title || media.name;
+const getMediaDate = (media) => media.release_date || media.first_air_date || null;
+
+export const addToWatchlist = async (media) => {
     const userId = await getUserId();
+    const mediaId = getMediaId(media);
+    const mediaType = getMediaType(media);
     const { data, error } = await supabase
         .from('watchlists')
         .upsert({
             user_id: userId,
-            movie_id: Number(movie.movie_id || movie.id),
-            title: movie.title,
-            poster_path: movie.poster_path,
-            vote_average: movie.vote_average,
-            release_date: movie.release_date || null,
-        }, { onConflict: 'user_id,movie_id' })
+            media_id: mediaId,
+            media_type: mediaType,
+            title: getMediaTitle(media),
+            poster_path: media.poster_path,
+            vote_average: media.vote_average,
+            release_date: getMediaDate(media),
+        }, { onConflict: 'user_id,media_type,media_id' })
         .select()
         .single();
 
@@ -39,13 +47,16 @@ export const addToWatchlist = async (movie) => {
     return data;
 };
 
-export const removeFromWatchlist = async (movieId) => {
+export const removeFromWatchlist = async (media, mediaType = 'movie') => {
     const userId = await getUserId();
+    const mediaId = typeof media === 'object' ? getMediaId(media) : Number(media);
+    const type = typeof media === 'object' ? getMediaType(media) : mediaType;
     const { error } = await supabase
         .from('watchlists')
         .delete()
         .eq('user_id', userId)
-        .eq('movie_id', Number(movieId));
+        .eq('media_id', mediaId)
+        .eq('media_type', type);
 
     if (error) throw error;
 };
@@ -101,16 +112,18 @@ export const deletePlaylist = async (playlistId) => {
     if (error) throw error;
 };
 
-export const addMovieToPlaylist = async (playlistId, movie) => {
+export const addMediaToPlaylist = async (playlistId, media) => {
+    const mediaId = getMediaId(media);
     const { data, error } = await supabase
         .from('playlist_items')
         .insert({
             playlist_id: playlistId,
-            movie_id: Number(movie.movie_id || movie.id),
-            title: movie.title,
-            poster_path: movie.poster_path,
-            vote_average: movie.vote_average,
-            release_date: movie.release_date || null,
+            media_id: mediaId,
+            media_type: getMediaType(media),
+            title: getMediaTitle(media),
+            poster_path: media.poster_path,
+            vote_average: media.vote_average,
+            release_date: getMediaDate(media),
         })
         .select()
         .single();
@@ -125,12 +138,18 @@ export const addMovieToPlaylist = async (playlistId, movie) => {
     return { item: data, alreadyExists: false };
 };
 
-export const removeMovieFromPlaylist = async (playlistId, movieId) => {
+export const removeMediaFromPlaylist = async (playlistId, media, mediaType = 'movie') => {
+    const mediaId = typeof media === 'object' ? getMediaId(media) : Number(media);
+    const type = typeof media === 'object' ? getMediaType(media) : mediaType;
     const { error } = await supabase
         .from('playlist_items')
         .delete()
         .eq('playlist_id', playlistId)
-        .eq('movie_id', Number(movieId));
+        .eq('media_id', mediaId)
+        .eq('media_type', type);
 
     if (error) throw error;
 };
+
+export const addMovieToPlaylist = addMediaToPlaylist;
+export const removeMovieFromPlaylist = removeMediaFromPlaylist;

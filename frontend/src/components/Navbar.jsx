@@ -29,7 +29,7 @@ export default function Navbar({ onSearch }) {
                 <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md relative">
                     <input
                         type="text"
-                        placeholder="Search movies..."
+                        placeholder="Search movies or series..."
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         className="w-full bg-neutral-800 text-sm text-white placeholder-neutral-400 pl-10 pr-4 py-2 rounded-full border border-neutral-700 focus:outline-none focus:border-amber-500"

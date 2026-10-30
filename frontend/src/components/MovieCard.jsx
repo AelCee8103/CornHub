@@ -9,22 +9,24 @@ export default function MovieCard({
   onAddToPlaylist,
   onRemove,
 }) {
-  const movieId = movie.movie_id || movie.id;
+  const mediaId = movie.media_id || movie.movie_id || movie.id;
+  const mediaType = movie.media_type || movie.mediaType || 'movie';
 
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : 'https://via.placeholder.com/500x750?text=No+Poster';
 
-  const releaseYear = movie.release_date ? movie.release_date.split('-')[0] : 'N/A';
+  const releaseDate = movie.release_date || movie.first_air_date;
+  const releaseYear = releaseDate ? releaseDate.split('-')[0] : 'N/A';
   const rating = movie.vote_average ? Number(movie.vote_average).toFixed(1) : 'NR';
 
   return (
     <div className="group relative bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800 hover:border-amber-500/50 transition-all duration-300 shadow-md hover:shadow-xl flex flex-col">
       {/* Poster Image */}
-      <div className="relative aspect-[2/3] overflow-hidden cursor-pointer" onClick={() => onSelect(movieId)}>
+      <div className="relative aspect-[2/3] overflow-hidden cursor-pointer" onClick={() => onSelect({ id: mediaId, mediaType })}>
         <img
           src={posterUrl}
-          alt={movie.title}
+          alt={movie.title || movie.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
@@ -39,9 +41,9 @@ export default function MovieCard({
         <div>
           <h3
             className="text-white font-semibold text-sm line-clamp-1 hover:text-amber-400 cursor-pointer"
-            onClick={() => onSelect(movieId)}
+            onClick={() => onSelect({ id: mediaId, mediaType })}
           >
-            {movie.title}
+            {movie.title || movie.name}
           </h3>
           <p className="text-neutral-400 text-xs mt-0.5">{releaseYear}</p>
         </div>

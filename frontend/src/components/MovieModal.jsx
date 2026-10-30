@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { getMovieDetails } from '../services/movies';
+import { getMediaDetails } from '../services/movies';
 import VidSrcPlayer from './VidSrcPlayer';
 import { X, Star, Calendar, Clock, Play, Video, Image as ImageIcon } from 'lucide-react';
 
-export default function MovieModal({ movieId, onClose }) {
+export default function MovieModal({ media, movieId, onClose }) {
+    const selectedMedia = media || { id: movieId, mediaType: 'movie' };
+    const mediaType = selectedMedia.mediaType || selectedMedia.media_type || 'movie';
+    const mediaId = selectedMedia.media_id || selectedMedia.movie_id || selectedMedia.id;
     const [details, setDetails] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('watch'); // 'watch' | 'trailer' | 'backdrop'
 
     useEffect(() => {
-        if (!movieId) return;
+        if (!mediaId) return;
 
         const fetchDetails = async () => {
             setLoading(true);
             try {
-                const response = await getMovieDetails(movieId);
+                const response = await getMediaDetails(mediaType, mediaId);
                 setDetails(response);
                 // default to 'watch'
                 setActiveTab('watch');
@@ -26,9 +29,9 @@ export default function MovieModal({ movieId, onClose }) {
         };
 
         fetchDetails();
-    }, [movieId]);
+    }, [mediaId, mediaType]);
 
-    if (!movieId) return null;
+    if (!mediaId) return null;
 
     const trailer = details?.videos?.results?.find(
         (v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')
@@ -54,15 +57,16 @@ export default function MovieModal({ movieId, onClose }) {
                         <div className="w-full bg-black rounded-t-2xl overflow-hidden">
                             {activeTab === 'watch' ? (
                                 <VidSrcPlayer
-                                    tmdbId={details.id || movieId}
-                                    imdbId={details.imdb_id}
-                                    title={details.title}
+                                    mediaType={mediaType}
+                                    tmdbId={details.id || mediaId}
+                                    imdbId={details.external_ids?.imdb_id || details.imdb_id}
+                                    title={details.title || details.name}
                                 />
                             ) : activeTab === 'trailer' && trailer ? (
                                 <div className="aspect-video w-full">
                                     <iframe
                                         src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1`}
-                                        title={details.title}
+                                        title={details.title || details.name}
                                         className="w-full h-full border-0"
                                         allow="autoplay; encrypted-media; fullscreen"
                                         allowFullScreen
@@ -72,7 +76,7 @@ export default function MovieModal({ movieId, onClose }) {
                                 <div className="aspect-video w-full overflow-hidden">
                                     <img
                                         src={`https://image.tmdb.org/t/p/w1280${details.backdrop_path}`}
-                                        alt={details.title}
+                                        alt=                                        {details.title || details.name}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
@@ -94,7 +98,7 @@ export default function MovieModal({ movieId, onClose }) {
                                 }`}
                             >
                                 <Play className="w-3.5 h-3.5 fill-current" />
-                                <span>Watch Movie (VidSrc)</span>
+                                <span>Watch {mediaType === 'tv' ? 'Series' : 'Movie'} (VidSrc)</span>
                             </button>
 
                             {trailer && (
@@ -128,7 +132,7 @@ export default function MovieModal({ movieId, onClose }) {
 
                         {/* Details Content */}
                         <div className="p-6">
-                            <h2 className="text-2xl font-bold">{details.title}</h2>
+                            <h2 className="text-2xl font-bold">{details.title || details.name}</h2>
                             {details.tagline && (
                                 <p className="text-neutral-400 italic text-sm mt-1">{details.tagline}</p>
                             )}
@@ -138,16 +142,16 @@ export default function MovieModal({ movieId, onClose }) {
                                     <Star className="w-4 h-4 fill-amber-400" />
                                     {details.vote_average ? Number(details.vote_average).toFixed(1) : 'NR'} / 10
                                 </span>
-                                {details.release_date && (
+                                {(details.release_date || details.first_air_date) && (
                                     <span className="flex items-center gap-1">
                                         <Calendar className="w-4 h-4 text-neutral-400" />
-                                        {details.release_date}
+                                        {details.release_date || details.first_air_date}
                                     </span>
                                 )}
-                                {details.runtime && (
+                                {(details.runtime || details.episode_run_time?.[0]) && (
                                     <span className="flex items-center gap-1">
                                         <Clock className="w-4 h-4 text-neutral-400" />
-                                        {details.runtime} mins
+                                        {details.runtime || details.episode_run_time?.[0]} mins
                                     </span>
                                 )}
                             </div>
@@ -167,7 +171,7 @@ export default function MovieModal({ movieId, onClose }) {
                             <div className="mt-5">
                                 <h3 className="text-sm font-semibold uppercase text-neutral-400 tracking-wider">Overview</h3>
                                 <p className="text-neutral-300 text-sm mt-1 leading-relaxed">
-                                    {details.overview || 'No overview available for this movie.'}
+                                    {details.overview || `No overview available for this ${mediaType === 'tv' ? 'series' : 'movie'}.`}
                                 </p>
                             </div>
                         </div>
