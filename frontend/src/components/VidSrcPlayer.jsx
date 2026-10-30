@@ -14,6 +14,7 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
 
   const [currentServer, setCurrentServer] = useState('vidsrc.sh');
   const [savedProgress, setSavedProgress] = useState(0);
+  const [resumeAt, setResumeAt] = useState(0);
   const [useResume, setUseResume] = useState(true);
 
   // Check saved progress on mount
@@ -21,9 +22,12 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
     if (!targetId) return;
     const progress = localStorage.getItem(storageKey);
     if (progress && Number(progress) > 10) {
-      setSavedProgress(Math.floor(Number(progress)));
+      const savedSeconds = Math.floor(Number(progress));
+      setSavedProgress(savedSeconds);
+      setResumeAt(savedSeconds);
     } else {
       setSavedProgress(0);
+      setResumeAt(0);
     }
   }, [targetId, storageKey]);
 
@@ -59,8 +63,8 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
 
   const queryParams = new URLSearchParams();
   queryParams.set('autoplay', '1');
-  if (useResume && savedProgress > 10) {
-    queryParams.set('startAt', savedProgress.toString());
+  if (useResume && resumeAt > 10) {
+    queryParams.set('startAt', resumeAt.toString());
   }
 
   const embedUrl = `https://${currentServer}/embed/movie/${targetId}?${queryParams.toString()}`;
@@ -74,6 +78,7 @@ export default function VidSrcPlayer({ tmdbId, imdbId, title }) {
   const handleResetProgress = () => {
     localStorage.removeItem(storageKey);
     setSavedProgress(0);
+    setResumeAt(0);
     setUseResume(false);
   };
 
