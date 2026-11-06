@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
+import ErrorState from '../components/ErrorState';
 import { Sparkles, TrendingUp, Star, Film } from 'lucide-react';
 
 export default function Home() {
@@ -20,6 +21,8 @@ export default function Home() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [reloadKey, setReloadKey] = useState(0);
 
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [playlistMedia, setPlaylistMedia] = useState(null);
@@ -63,6 +66,7 @@ export default function Home() {
     useEffect(() => {
         const fetchMovies = async () => {
             setLoading(true);
+            setError('');
             try {
                 let response;
                 if (searchQuery) {
@@ -71,6 +75,7 @@ export default function Home() {
                     response = await discoverMedia(mediaType, {
                         page,
                         sort_by: category,
+                        vote_count_gte: category === 'vote_average.desc' ? '300' : undefined,
                         with_genres: selectedGenre || undefined,
                     });
                 }
@@ -78,13 +83,14 @@ export default function Home() {
                 setTotalPages(Math.min(response.total_pages || 1, 500));
             } catch (err) {
                 console.error('Failed to load movies', err);
+                setError(err.message || 'Unable to load titles.');
             } finally {
                 setLoading(false);
             }
         };
 
         fetchMovies();
-    }, [searchQuery, category, selectedGenre, page, mediaType]);
+    }, [searchQuery, category, selectedGenre, page, mediaType, reloadKey]);
 
     // Watchlist toggle handler
     const handleToggleWatchlist = async (movie) => {
@@ -162,7 +168,7 @@ export default function Home() {
                             className="bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-amber-500"
                         >
                             <option value="popularity.desc">Most Popular</option>
-                            <option value="vote_average.desc&vote_count.gte=300">Top Rated</option>
+                            <option value="vote_average.desc">Top Rated</option>
                             <option value={mediaType === 'tv' ? 'first_air_date.desc' : 'primary_release_date.desc'}>
                                 Latest Releases
                             </option>
@@ -189,7 +195,9 @@ export default function Home() {
             </div>
 
             {/* Media Grid */}
-            {loading ? (
+            {error ? (
+                <ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} />
+            ) : loading ? (
                 <div className="flex items-center justify-center min-h-[40vh]">
                     <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-amber-500"></div>
                 </div>

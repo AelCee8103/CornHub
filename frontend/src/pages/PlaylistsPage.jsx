@@ -13,11 +13,13 @@ import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 import { List, Plus, Trash2, Film, FolderPlus } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 export default function PlaylistsPage() {
     const [playlists, setPlaylists] = useState([]);
     const [activePlaylist, setActivePlaylist] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [creating, setCreating] = useState(false);
@@ -42,6 +44,7 @@ export default function PlaylistsPage() {
 
     const fetchPlaylists = async () => {
         setLoading(true);
+        setError('');
         try {
             const data = await listPlaylists();
             setPlaylists(data);
@@ -50,6 +53,7 @@ export default function PlaylistsPage() {
             }
         } catch (err) {
             console.error('Failed to load playlists', err);
+            setError(err.message || 'Unable to load your playlists.');
         } finally {
             setLoading(false);
         }
@@ -197,7 +201,9 @@ export default function PlaylistsPage() {
                         <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider px-1">
                             Your Collections ({playlists.length})
                         </h3>
-                        {loading ? (
+                        {error ? (
+                            <ErrorState message={error} onRetry={fetchPlaylists} />
+                        ) : loading ? (
                             <div className="text-neutral-400 text-xs py-4 text-center">Loading playlists...</div>
                         ) : playlists.length === 0 ? (
                             <div className="text-neutral-500 text-xs py-4 text-center">No playlists yet</div>

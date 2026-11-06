@@ -46,6 +46,9 @@ export const AuthProvider = ({ children }) => {
             options: { data: { name, full_name: name } },
         });
         if (error) throw error;
+        if (data.user?.identities?.length === 0) {
+            throw new Error('An account already exists with this email. Please log in instead.');
+        }
         return data;
     };
 

@@ -5,6 +5,7 @@ import {
     listPlaylists,
 } from '../services/userData';
 import { X, Plus, Check, AlertCircle } from 'lucide-react';
+import ErrorState from './ErrorState';
 
 export default function AddToPlaylistModal({ movie, onClose }) {
     const [playlists, setPlaylists] = useState([]);
@@ -13,6 +14,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
     const [creating, setCreating] = useState(false);
     const [addedIds, setAddedIds] = useState(new Set());
     const [message, setMessage] = useState(null);
+    const [error, setError] = useState('');
 
     const targetMediaId = Number(movie?.media_id || movie?.movie_id || movie?.id);
     const targetMediaType = movie?.media_type || movie?.mediaType || 'movie';
@@ -22,6 +24,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
     }, []);
 
     const fetchPlaylists = async () => {
+        setError('');
         try {
             const data = await listPlaylists();
             setPlaylists(data);
@@ -38,6 +41,7 @@ export default function AddToPlaylistModal({ movie, onClose }) {
             setAddedIds(initialAddedIds);
         } catch (err) {
             console.error('Failed to load playlists', err);
+            setError(err.message || 'Unable to load playlists.');
         } finally {
             setLoading(false);
         }
@@ -168,7 +172,9 @@ export default function AddToPlaylistModal({ movie, onClose }) {
 
                 {/* Playlists list */}
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {loading ? (
+                    {error ? (
+                        <ErrorState message={error} onRetry={fetchPlaylists} />
+                    ) : loading ? (
                         <div className="text-center py-6 text-xs text-neutral-400">Loading playlists...</div>
                     ) : playlists.length === 0 ? (
                         <div className="text-center py-6 text-xs text-neutral-400">

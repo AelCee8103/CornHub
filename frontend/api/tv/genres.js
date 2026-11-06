@@ -1,5 +1,6 @@
-import { fetchTmdb, sendTmdbResponse } from '../../lib/tmdb.js';
+import { fetchTmdb, requireGet, sendTmdbResponse } from '../../lib/tmdb.js';
 
-export default async function handler(_request, response) {
+export default async function handler(request, response) {
+    if (!requireGet(request, response)) return;
     return sendTmdbResponse(response, await fetchTmdb('/genre/tv/list'));
 }

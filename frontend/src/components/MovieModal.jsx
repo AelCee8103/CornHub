@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getMediaDetails } from '../services/movies';
 import VidSrcPlayer from './VidSrcPlayer';
 import { X, Star, Calendar, Clock, Play, Video, Image as ImageIcon } from 'lucide-react';
+import ErrorState from './ErrorState';
 
 export default function MovieModal({ media, movieId, onClose }) {
     const selectedMedia = media || { id: movieId, mediaType: 'movie' };
@@ -9,6 +10,8 @@ export default function MovieModal({ media, movieId, onClose }) {
     const mediaId = selectedMedia.media_id || selectedMedia.movie_id || selectedMedia.id;
     const [details, setDetails] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [reloadKey, setReloadKey] = useState(0);
     const [activeTab, setActiveTab] = useState('watch'); // 'watch' | 'trailer' | 'backdrop'
 
     useEffect(() => {
@@ -16,6 +19,7 @@ export default function MovieModal({ media, movieId, onClose }) {
 
         const fetchDetails = async () => {
             setLoading(true);
+            setError('');
             try {
                 const response = await getMediaDetails(mediaType, mediaId);
                 setDetails(response);
@@ -23,13 +27,14 @@ export default function MovieModal({ media, movieId, onClose }) {
                 setActiveTab('watch');
             } catch (err) {
                 console.error('Failed to load movie details', err);
+                setError(err.message || 'Unable to load title details.');
             } finally {
                 setLoading(false);
             }
         };
 
         fetchDetails();
-    }, [mediaId, mediaType]);
+    }, [mediaId, mediaType, reloadKey]);
 
     if (!mediaId) return null;
 
@@ -51,6 +56,8 @@ export default function MovieModal({ media, movieId, onClose }) {
                     <div className="flex items-center justify-center p-24">
                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-amber-500"></div>
                     </div>
+                ) : error ? (
+                    <ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} />
                 ) : details ? (
                     <div>
                         {/* Media Display Area (VidSrc Player / Trailer / Backdrop) */}

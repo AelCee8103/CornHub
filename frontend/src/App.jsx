@@ -43,7 +43,7 @@ export default function App() {
             </main>
 
             <footer className="border-t border-neutral-900 bg-neutral-900/50 py-6 text-center text-xs text-neutral-500">
-              © {new Date().getFullYear()} CornHub Movies. Powered by TMDB & Laravel.
+              © {new Date().getFullYear()} CornHub Movies. Powered by TMDB & Supabase.
             </footer>
           </div>
         </Router>

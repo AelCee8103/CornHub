@@ -27,8 +27,11 @@ It is not required for the Supabase + Vercel deployment.
 ### Supabase
 
 1. Create a Supabase project.
-2. Open the Supabase SQL Editor and run
-   `supabase/migrations/001_initial_schema.sql`.
+2. Open the Supabase SQL Editor and run the migrations in order:
+   `supabase/migrations/001_initial_schema.sql`, then
+   `supabase/migrations/002_add_media_types.sql`.
+   The second migration is required because the application supports both movies
+   and TV series through the `media_id` and `media_type` columns.
 3. Configure the Auth site URL and redirect URLs for `http://localhost:5173`.
 4. Decide whether email confirmation should be required for new accounts.
 

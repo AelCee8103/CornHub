@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getMediaId, getMediaType } from './media';
 
 const getUserId = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -20,8 +21,6 @@ export const listWatchlist = async () => {
     return data || [];
 };
 
-const getMediaId = (media) => Number(media.media_id || media.movie_id || media.id);
-const getMediaType = (media) => media.media_type || media.mediaType || 'movie';
 const getMediaTitle = (media) => media.title || media.name;
 const getMediaDate = (media) => media.release_date || media.first_air_date || null;
 

@@ -4,10 +4,12 @@ import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 import { Bookmark, Film } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 export default function WatchlistPage() {
     const [watchlist, setWatchlist] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [playlistMedia, setPlaylistMedia] = useState(null);
 
@@ -17,10 +19,12 @@ export default function WatchlistPage() {
 
     const fetchWatchlist = async () => {
         setLoading(true);
+        setError('');
         try {
             setWatchlist(await listWatchlist());
         } catch (err) {
             console.error('Failed to load watchlist', err);
+            setError(err.message || 'Unable to load your watchlist.');
         } finally {
             setLoading(false);
         }
@@ -50,7 +54,9 @@ export default function WatchlistPage() {
                 </p>
             </div>
 
-            {loading ? (
+            {error ? (
+                <ErrorState message={error} onRetry={fetchWatchlist} />
+            ) : loading ? (
                 <div className="flex items-center justify-center min-h-[40vh]">
                     <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-amber-500"></div>
                 </div>

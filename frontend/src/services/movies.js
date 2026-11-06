@@ -6,7 +6,8 @@ const mediaApi = async (mediaType, path, params = {}) => {
     const response = await fetch(`/api/${apiResource}/${path}${query.toString() ? `?${query}` : ''}`);
 
     if (!response.ok) {
-        throw new Error(`Failed to load ${mediaType} data.`);
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message || `Failed to load ${mediaType} data.`);
     }
 
     return response.json();
