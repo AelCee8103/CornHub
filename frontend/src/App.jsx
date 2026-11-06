@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import AuthProvider from './lib/AuthProvider';
+import ToastProvider from './lib/ToastProvider';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
@@ -10,13 +10,12 @@ import WatchlistPage from './pages/WatchlistPage';
 import PlaylistsPage from './pages/PlaylistsPage';
 
 export default function App() {
-  const [searchTerm, setSearchTerm] = useState('');
-
   return (
       <AuthProvider>
-        <Router>
+        <ToastProvider>
+          <Router>
           <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
-            <Navbar onSearch={setSearchTerm} />
+            <Navbar />
 
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
               <Routes>
@@ -46,7 +45,8 @@ export default function App() {
               © {new Date().getFullYear()} CornHub Movies. Powered by TMDB & Supabase.
             </footer>
           </div>
-        </Router>
+          </Router>
+        </ToastProvider>
       </AuthProvider>
   );
 }

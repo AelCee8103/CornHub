@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus } from 'lucide-react';
+import { useToast } from '../lib/toast';
+import { logError, userFacingError } from '../lib/errors';
 
 export default function Register() {
     const [name, setName] = useState('');
@@ -11,6 +13,7 @@ export default function Register() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { register } = useAuth();
+    const { notify } = useToast();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -18,16 +21,22 @@ export default function Register() {
         setError('');
 
         if (password !== passwordConfirmation) {
-            setError('Passwords do not match');
+            const message = 'Passwords do not match.';
+            setError(message);
+            notify({ type: 'error', message, key: 'register-password-mismatch' });
             return;
         }
 
         setLoading(true);
         try {
             await register(name, email, password, passwordConfirmation);
+            notify({ type: 'success', message: 'Your account has been created.', key: 'register-success' });
             navigate('/');
         } catch (err) {
-            setError(err.message || 'Registration failed.');
+            logError('Registration failed', err);
+            const message = userFacingError(err, 'Unable to create your account. Please check your details and try again.');
+            setError(message);
+            notify({ type: 'error', message, key: 'register-error' });
         } finally {
             setLoading(false);
         }
@@ -51,8 +60,9 @@ export default function Register() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-medium text-neutral-300 mb-1">Full Name</label>
+                        <label htmlFor="register-name" className="block text-xs font-medium text-neutral-300 mb-1">Full Name</label>
                         <input
+                            id="register-name"
                             type="text"
                             required
                             value={name}
@@ -63,8 +73,9 @@ export default function Register() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-neutral-300 mb-1">Email</label>
+                        <label htmlFor="register-email" className="block text-xs font-medium text-neutral-300 mb-1">Email</label>
                         <input
+                            id="register-email"
                             type="email"
                             required
                             value={email}
@@ -75,8 +86,9 @@ export default function Register() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-neutral-300 mb-1">Password</label>
+                        <label htmlFor="register-password" className="block text-xs font-medium text-neutral-300 mb-1">Password</label>
                         <input
+                            id="register-password"
                             type="password"
                             required
                             value={password}
@@ -87,8 +99,9 @@ export default function Register() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-neutral-300 mb-1">Confirm Password</label>
+                        <label htmlFor="register-password-confirmation" className="block text-xs font-medium text-neutral-300 mb-1">Confirm Password</label>
                         <input
+                            id="register-password-confirmation"
                             type="password"
                             required
                             value={passwordConfirmation}

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Star, Plus, Bookmark, Check, Trash2 } from 'lucide-react';
 
 export default function MovieCard({
@@ -8,13 +7,14 @@ export default function MovieCard({
   onToggleWatchlist,
   onAddToPlaylist,
   onRemove,
+  busy = false,
 }) {
   const mediaId = movie.media_id || movie.movie_id || movie.id;
   const mediaType = movie.media_type || movie.mediaType || 'movie';
 
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-    : 'https://via.placeholder.com/500x750?text=No+Poster';
+    : null;
 
   const releaseDate = movie.release_date || movie.first_air_date;
   const releaseYear = releaseDate ? releaseDate.split('-')[0] : 'N/A';
@@ -26,7 +26,11 @@ export default function MovieCard({
       <div className="relative aspect-[2/3] overflow-hidden cursor-pointer" onClick={() => onSelect({ id: mediaId, mediaType })}>
         <img
           src={posterUrl}
-          alt={movie.title || movie.name}
+          alt={movie.title || movie.name || 'Untitled'}
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = 'https://via.placeholder.com/500x750?text=No+Poster';
+          }}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
@@ -43,7 +47,7 @@ export default function MovieCard({
             className="text-white font-semibold text-sm line-clamp-1 hover:text-amber-400 cursor-pointer"
             onClick={() => onSelect({ id: mediaId, mediaType })}
           >
-            {movie.title || movie.name}
+            {movie.title || movie.name || 'Untitled'}
           </h3>
           <p className="text-neutral-400 text-xs mt-0.5">{releaseYear}</p>
         </div>
@@ -53,6 +57,7 @@ export default function MovieCard({
           {onToggleWatchlist && (
             <button
               onClick={() => onToggleWatchlist(movie)}
+              disabled={busy}
               title={isInWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 isInWatchlist
@@ -61,13 +66,14 @@ export default function MovieCard({
               }`}
             >
               {isInWatchlist ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-              <span>{isInWatchlist ? 'Saved' : 'Watchlist'}</span>
+              <span>{busy ? 'Saving...' : isInWatchlist ? 'Saved' : 'Watchlist'}</span>
             </button>
           )}
 
           {onAddToPlaylist && (
             <button
               onClick={() => onAddToPlaylist(movie)}
+              disabled={busy}
               title="Add to Custom Playlist"
               className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 p-1.5 rounded-lg transition-colors cursor-pointer"
             >
@@ -78,6 +84,7 @@ export default function MovieCard({
           {onRemove && (
             <button
               onClick={() => onRemove(movie)}
+              disabled={busy}
               title="Remove"
               className="bg-neutral-800 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 p-1.5 rounded-lg transition-colors cursor-pointer"
             >

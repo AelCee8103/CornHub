@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { discoverMedia, getGenres, searchMedia } from '../services/movies';
 import { addToWatchlist, listWatchlist, removeFromWatchlist } from '../services/userData';
@@ -7,7 +7,9 @@ import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 import ErrorState from '../components/ErrorState';
-import { Sparkles, TrendingUp, Star, Film } from 'lucide-react';
+import { Sparkles, Film } from 'lucide-react';
+import { useToast } from '../lib/toast';
+import { logError, userFacingError } from '../lib/errors';
 
 export default function Home() {
     const [searchParams] = useSearchParams();
@@ -27,8 +29,10 @@ export default function Home() {
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [playlistMedia, setPlaylistMedia] = useState(null);
     const [watchlistIds, setWatchlistIds] = useState(new Set());
+    const [busyIds, setBusyIds] = useState(new Set());
 
     const { isAuthenticated } = useAuth();
+    const { notify } = useToast();
 
     // Load genres
     useEffect(() => {
@@ -37,16 +41,17 @@ export default function Home() {
                 const response = await getGenres(mediaType);
                 setGenres(response.genres || []);
             } catch (err) {
-                console.error('Failed to load genres', err);
+                logError('Failed to load genres', err);
+                notify({ type: 'error', message: userFacingError(err, 'Unable to load genres.'), key: `genres-${mediaType}` });
             }
         };
         fetchGenres();
-    }, [mediaType]);
+    }, [mediaType, notify]);
 
     // Load user's watchlist movie IDs
     useEffect(() => {
         if (!isAuthenticated) {
-            setWatchlistIds(new Set());
+            setTimeout(() => setWatchlistIds(new Set()), 0);
             return;
         }
 
@@ -56,11 +61,12 @@ export default function Home() {
                 const ids = new Set(data.map((item) => `${item.media_type || 'movie'}:${item.media_id || item.movie_id}`));
                 setWatchlistIds(ids);
             } catch (err) {
-                console.error('Failed to load watchlist', err);
+                logError('Failed to load watchlist', err);
+                notify({ type: 'error', message: userFacingError(err, 'Unable to load your watchlist.'), key: 'home-watchlist-load-error' });
             }
         };
         fetchWatchlist();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, notify]);
 
     // Load movies on search, genre, category, or page change
     useEffect(() => {
@@ -82,8 +88,8 @@ export default function Home() {
                 setMedia((response.results || []).map((item) => ({ ...item, mediaType })));
                 setTotalPages(Math.min(response.total_pages || 1, 500));
             } catch (err) {
-                console.error('Failed to load movies', err);
-                setError(err.message || 'Unable to load titles.');
+                logError('Failed to load titles', err);
+                setError(userFacingError(err, 'Unable to load titles.'));
             } finally {
                 setLoading(false);
             }
@@ -95,12 +101,15 @@ export default function Home() {
     // Watchlist toggle handler
     const handleToggleWatchlist = async (movie) => {
         if (!isAuthenticated) {
-            alert(`Please log in to add ${mediaType === 'tv' ? 'series' : 'movies'} to your watchlist.`);
+            notify({ type: 'warning', message: `Please log in to add ${mediaType === 'tv' ? 'series' : 'movies'} to your watchlist.`, key: 'watchlist-login-required' });
             return;
         }
 
         const mediaId = movie.media_id || movie.movie_id || movie.id;
         const isSaved = watchlistIds.has(`${mediaType}:${mediaId}`);
+        const key = `${mediaType}:${mediaId}`;
+        if (busyIds.has(key)) return;
+        setBusyIds((prev) => new Set(prev).add(key));
 
         try {
             if (isSaved) {
@@ -110,18 +119,27 @@ export default function Home() {
                     next.delete(`${mediaType}:${mediaId}`);
                     return next;
                 });
+                notify({ type: 'success', message: 'Removed from your watchlist.', key: `watchlist-remove-${key}` });
             } else {
                 await addToWatchlist(movie);
                 setWatchlistIds((prev) => new Set(prev).add(`${mediaType}:${mediaId}`));
+                notify({ type: 'success', message: 'Added to your watchlist.', key: `watchlist-add-${key}` });
             }
         } catch (err) {
-            console.error('Failed to update watchlist', err);
+            logError('Failed to update watchlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to update your watchlist.'), key: `watchlist-error-${key}` });
+        } finally {
+            setBusyIds((prev) => {
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
         }
     };
 
     const handleOpenPlaylistModal = (movie) => {
         if (!isAuthenticated) {
-            alert(`Please log in to add ${mediaType === 'tv' ? 'series' : 'movies'} to custom playlists.`);
+            notify({ type: 'warning', message: `Please log in to add ${mediaType === 'tv' ? 'series' : 'movies'} to custom playlists.`, key: 'playlist-login-required' });
             return;
         }
         setPlaylistMedia(movie);
@@ -217,6 +235,7 @@ export default function Home() {
                             isInWatchlist={watchlistIds.has(`${mediaType}:${item.id}`)}
                             onToggleWatchlist={handleToggleWatchlist}
                             onAddToPlaylist={handleOpenPlaylistModal}
+                            busy={busyIds.has(`${mediaType}:${item.id}`)}
                         />
                     ))}
                 </div>

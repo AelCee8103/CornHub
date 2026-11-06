@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     addToWatchlist,
     createPlaylist,
@@ -14,6 +14,8 @@ import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 import { List, Plus, Trash2, Film, FolderPlus } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
+import { useToast } from '../lib/toast';
+import { logError, userFacingError } from '../lib/errors';
 
 export default function PlaylistsPage() {
     const [playlists, setPlaylists] = useState([]);
@@ -26,46 +28,53 @@ export default function PlaylistsPage() {
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [playlistMedia, setPlaylistMedia] = useState(null);
     const [watchlistIds, setWatchlistIds] = useState(new Set());
+    const [busyIds, setBusyIds] = useState(new Set());
+    const { notify } = useToast();
 
-    useEffect(() => {
-        fetchPlaylists();
-        fetchWatchlist();
-    }, []);
-
-    const fetchWatchlist = async () => {
+    const fetchWatchlist = useCallback(async () => {
         try {
             const data = await listWatchlist();
             const ids = new Set(data.map((item) => `${item.media_type || 'movie'}:${item.media_id || item.movie_id}`));
             setWatchlistIds(ids);
         } catch (err) {
-            console.error('Failed to load watchlist', err);
+            logError('Failed to load watchlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to load your watchlist.'), key: 'playlists-watchlist-error' });
         }
-    };
+    }, [notify]);
 
-    const fetchPlaylists = async () => {
+    const fetchPlaylists = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
             const data = await listPlaylists();
             setPlaylists(data);
-            if (data.length > 0 && !activePlaylist) {
-                fetchPlaylistDetails(data[0].id);
+            if (data.length > 0) {
+                setActivePlaylist(await getPlaylist(data[0].id));
             }
         } catch (err) {
-            console.error('Failed to load playlists', err);
-            setError(err.message || 'Unable to load your playlists.');
+            logError('Failed to load playlists', err);
+            setError(userFacingError(err, 'Unable to load your playlists.'));
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchPlaylistDetails = async (id) => {
+    const fetchPlaylistDetails = useCallback(async (id) => {
         try {
             setActivePlaylist(await getPlaylist(id));
         } catch (err) {
-            console.error('Failed to fetch playlist details', err);
+            logError('Failed to fetch playlist details', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to load this playlist.'), key: `playlist-details-error-${id}` });
         }
-    };
+    }, [notify]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchPlaylists();
+            fetchWatchlist();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [fetchPlaylists, fetchWatchlist]);
 
     const handleCreatePlaylist = async (e) => {
         e.preventDefault();
@@ -78,8 +87,10 @@ export default function PlaylistsPage() {
             setActivePlaylist({ ...created, items: [] });
             setName('');
             setDescription('');
+            notify({ type: 'success', message: `Created playlist "${created.name}".`, key: `playlist-created-${created.id}` });
         } catch (err) {
-            console.error('Failed to create playlist', err);
+            logError('Failed to create playlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to create playlist.'), key: 'playlist-create-error' });
         } finally {
             setCreating(false);
         }
@@ -88,6 +99,8 @@ export default function PlaylistsPage() {
     const handleDeletePlaylist = async (id) => {
         if (!confirm('Are you sure you want to delete this playlist?')) return;
 
+        if (busyIds.has(`delete:${id}`)) return;
+        setBusyIds((prev) => new Set(prev).add(`delete:${id}`));
         try {
             await deletePlaylist(id);
             const updated = playlists.filter((pl) => pl.id !== id);
@@ -99,8 +112,16 @@ export default function PlaylistsPage() {
                     setActivePlaylist(null);
                 }
             }
+            notify({ type: 'success', message: 'Playlist deleted.', key: `playlist-deleted-${id}` });
         } catch (err) {
-            console.error('Failed to delete playlist', err);
+            logError('Failed to delete playlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to delete playlist.'), key: `playlist-delete-error-${id}` });
+        } finally {
+            setBusyIds((prev) => {
+                const next = new Set(prev);
+                next.delete(`delete:${id}`);
+                return next;
+            });
         }
     };
 
@@ -109,6 +130,8 @@ export default function PlaylistsPage() {
         const mediaType = movie.media_type || movie.mediaType || 'movie';
         const key = `${mediaType}:${mediaId}`;
         const isSaved = watchlistIds.has(key);
+        if (busyIds.has(key)) return;
+        setBusyIds((prev) => new Set(prev).add(key));
 
         try {
             if (isSaved) {
@@ -122,8 +145,16 @@ export default function PlaylistsPage() {
                 await addToWatchlist(movie);
                 setWatchlistIds((prev) => new Set(prev).add(key));
             }
+            notify({ type: 'success', message: isSaved ? 'Removed from your watchlist.' : 'Added to your watchlist.', key: `playlist-watchlist-${key}` });
         } catch (err) {
-            console.error('Failed to update watchlist', err);
+            logError('Failed to update watchlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to update your watchlist.'), key: `playlist-watchlist-error-${key}` });
+        } finally {
+            setBusyIds((prev) => {
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
         }
     };
 
@@ -131,6 +162,9 @@ export default function PlaylistsPage() {
         if (!activePlaylist) return;
         const mediaId = movie.media_id || movie.movie_id || movie.id;
         const mediaType = movie.media_type || movie.mediaType || 'movie';
+        const key = `${mediaType}:${mediaId}`;
+        if (busyIds.has(`remove:${key}`)) return;
+        setBusyIds((prev) => new Set(prev).add(`remove:${key}`));
 
         try {
             await removeMediaFromPlaylist(activePlaylist.id, movie);
@@ -147,8 +181,16 @@ export default function PlaylistsPage() {
                     pl.id === activePlaylist.id ? { ...pl, items_count: updatedItems.length } : pl
                 )
             );
+            notify({ type: 'success', message: 'Removed title from playlist.', key: `playlist-item-removed-${key}` });
         } catch (err) {
-            console.error('Failed to remove movie from playlist', err);
+            logError('Failed to remove title from playlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to remove title from playlist.'), key: `playlist-item-remove-error-${key}` });
+        } finally {
+            setBusyIds((prev) => {
+                const next = new Set(prev);
+                next.delete(`remove:${key}`);
+                return next;
+            });
         }
     };
 
@@ -229,6 +271,7 @@ export default function PlaylistsPage() {
                                             e.stopPropagation();
                                             handleDeletePlaylist(pl.id);
                                         }}
+                                        disabled={busyIds.has(`delete:${pl.id}`)}
                                         title="Delete Playlist"
                                         className="text-neutral-500 hover:text-red-400 p-1 rounded-md transition-colors"
                                     >
@@ -276,6 +319,7 @@ export default function PlaylistsPage() {
                                                 onToggleWatchlist={handleToggleWatchlist}
                                                 onAddToPlaylist={setPlaylistMedia}
                                                 onRemove={handleRemoveMovieFromPlaylist}
+                                                busy={busyIds.has(`${mediaType}:${mediaId}`) || busyIds.has(`remove:${mediaType}:${mediaId}`)}
                                             />
                                         );
                                     })}

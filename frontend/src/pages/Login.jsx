@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn } from 'lucide-react';
+import { useToast } from '../lib/toast';
+import { logError, userFacingError } from '../lib/errors';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -9,6 +11,7 @@ export default function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
+    const { notify } = useToast();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -18,9 +21,13 @@ export default function Login() {
 
         try {
             await login(email, password);
+            notify({ type: 'success', message: 'You are now signed in.', key: 'login-success' });
             navigate('/');
         } catch (err) {
-            setError(err.message || 'Invalid email or password.');
+            logError('Login failed', err);
+            const message = userFacingError(err, 'Unable to sign in. Check your email and password and try again.');
+            setError(message);
+            notify({ type: 'error', message, key: 'login-error' });
         } finally {
             setLoading(false);
         }
@@ -44,8 +51,9 @@ export default function Login() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-medium text-neutral-300 mb-1">Email</label>
+                        <label htmlFor="login-email" className="block text-xs font-medium text-neutral-300 mb-1">Email</label>
                         <input
+                            id="login-email"
                             type="email"
                             required
                             value={email}
@@ -56,8 +64,9 @@ export default function Login() {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-neutral-300 mb-1">Password</label>
+                        <label htmlFor="login-password" className="block text-xs font-medium text-neutral-300 mb-1">Password</label>
                         <input
+                            id="login-password"
                             type="password"
                             required
                             value={password}

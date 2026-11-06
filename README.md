@@ -3,6 +3,16 @@
 CornHub is a React/Vite movie discovery application with Supabase authentication and
 user data, plus server-side Vercel functions for TMDB requests.
 
+> [!IMPORTANT]
+> **Personal-use and legal notice:** CornHub is a personal software-development and
+> learning project. It is not intended to become a commercial streaming service,
+> generate revenue, or operate at the scale of a public platform such as Netflix.
+> This repository does not claim ownership of any third-party movies, TV series,
+> artwork, metadata, or playback sources. Anyone running, modifying, or deploying
+> this project is responsible for complying with all applicable copyright,
+> licensing, privacy, and other laws. This notice is not legal advice and does not
+> guarantee that using or deploying the project avoids legal obligations.
+
 ## Features
 
 - Discover, search, filter, and inspect TMDB movies.

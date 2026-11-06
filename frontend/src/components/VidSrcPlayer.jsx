@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, RotateCcw, Server, ShieldCheck } from 'lucide-react';
 
 const SERVERS = [
@@ -8,27 +8,34 @@ const SERVERS = [
   { id: 'vidsrc.xyz', name: 'Server 4 (vidsrc.xyz)' },
 ];
 
-export default function VidSrcPlayer({ mediaType = 'movie', tmdbId, imdbId, title }) {
+export default function VidSrcPlayer({
+  mediaType = 'movie',
+  tmdbId,
+  imdbId,
+  title,
+  season,
+  episode,
+  onEpisodeComplete,
+}) {
   const targetId = imdbId || tmdbId;
-  const storageKey = `vidsrc_progress_${mediaType}_${targetId}`;
+  const episodeKey = mediaType === 'tv' && season && episode ? `_${season}_${episode}` : '';
+  const storageKey = `vidsrc_progress_${mediaType}_${targetId}${episodeKey}`;
 
   const [currentServer, setCurrentServer] = useState('vidsrc.sh');
   const [savedProgress, setSavedProgress] = useState(0);
   const [resumeAt, setResumeAt] = useState(0);
   const [useResume, setUseResume] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
 
   // Check saved progress on mount
   useEffect(() => {
     if (!targetId) return;
     const progress = localStorage.getItem(storageKey);
-    if (progress && Number(progress) > 10) {
-      const savedSeconds = Math.floor(Number(progress));
+    const savedSeconds = progress && Number(progress) > 10 ? Math.floor(Number(progress)) : 0;
+    setTimeout(() => {
       setSavedProgress(savedSeconds);
       setResumeAt(savedSeconds);
-    } else {
-      setSavedProgress(0);
-      setResumeAt(0);
-    }
+    }, 0);
   }, [targetId, storageKey]);
 
   // Listen to postMessage player events from VidSrc
@@ -46,12 +53,13 @@ export default function VidSrcPlayer({ mediaType = 'movie', tmdbId, imdbId, titl
       } else if (player_status === 'completed') {
         localStorage.removeItem(storageKey);
         setSavedProgress(0);
+        onEpisodeComplete?.();
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [storageKey]);
+  }, [onEpisodeComplete, storageKey]);
 
   if (!targetId) {
     return (
@@ -68,7 +76,8 @@ export default function VidSrcPlayer({ mediaType = 'movie', tmdbId, imdbId, titl
   }
 
   const embedType = mediaType === 'tv' ? 'tv' : 'movie';
-  const embedUrl = `https://${currentServer}/embed/${embedType}/${targetId}?${queryParams.toString()}`;
+  const episodePath = mediaType === 'tv' && season && episode ? `/${season}-${episode}` : '';
+  const embedUrl = `https://${currentServer}/embed/${embedType}/${targetId}${episodePath}?${queryParams.toString()}`;
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -87,14 +96,19 @@ export default function VidSrcPlayer({ mediaType = 'movie', tmdbId, imdbId, titl
     <div className="flex flex-col w-full bg-neutral-950">
       {/* Player Iframe */}
       <div className="relative aspect-video w-full bg-black overflow-hidden shadow-2xl">
-        <iframe
+        {unavailable ? (
+          <div className="flex aspect-video w-full items-center justify-center text-sm text-neutral-400">
+            This player is unavailable. Try another source.
+          </div>
+        ) : <iframe
           key={`${embedUrl}-${useResume}`}
           src={embedUrl}
           title={title || (mediaType === 'tv' ? 'TV Player' : 'Movie Player')}
           className="w-full h-full border-0"
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
-        ></iframe>
+          onError={() => setUnavailable(true)}
+        ></iframe>}
       </div>
 
       {/* Player Toolbar / Controls */}

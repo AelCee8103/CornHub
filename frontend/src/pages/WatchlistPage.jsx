@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { listWatchlist, removeFromWatchlist } from '../services/userData';
 import MovieCard from '../components/MovieCard';
 import MovieModal from '../components/MovieModal';
 import AddToPlaylistModal from '../components/AddToPlaylistModal';
 import { Bookmark, Film } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
+import { useToast } from '../lib/toast';
+import { logError, userFacingError } from '../lib/errors';
 
 export default function WatchlistPage() {
     const [watchlist, setWatchlist] = useState([]);
@@ -12,34 +14,48 @@ export default function WatchlistPage() {
     const [error, setError] = useState('');
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [playlistMedia, setPlaylistMedia] = useState(null);
+    const [busyIds, setBusyIds] = useState(new Set());
+    const { notify } = useToast();
 
-    useEffect(() => {
-        fetchWatchlist();
-    }, []);
-
-    const fetchWatchlist = async () => {
+    const fetchWatchlist = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
             setWatchlist(await listWatchlist());
         } catch (err) {
-            console.error('Failed to load watchlist', err);
-            setError(err.message || 'Unable to load your watchlist.');
+            logError('Failed to load watchlist', err);
+            setError(userFacingError(err, 'Unable to load your watchlist.'));
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(fetchWatchlist, 0);
+        return () => clearTimeout(timer);
+    }, [fetchWatchlist]);
 
     const handleRemoveFromWatchlist = async (movie) => {
         const mediaId = movie.media_id || movie.movie_id || movie.id;
+        const key = `${movie.media_type || 'movie'}:${mediaId}`;
+        if (busyIds.has(key)) return;
+        setBusyIds((prev) => new Set(prev).add(key));
         try {
             await removeFromWatchlist(movie);
             setWatchlist((prev) => prev.filter((item) =>
                 `${item.media_type || 'movie'}:${item.media_id || item.movie_id || item.id}` !==
                 `${movie.media_type || 'movie'}:${mediaId}`
             ));
+            notify({ type: 'success', message: 'Removed from your watchlist.', key: `watchlist-remove-${key}` });
         } catch (err) {
-            console.error('Failed to remove from watchlist', err);
+            logError('Failed to remove from watchlist', err);
+            notify({ type: 'error', message: userFacingError(err, 'Unable to remove from your watchlist.'), key: `watchlist-remove-error-${key}` });
+        } finally {
+            setBusyIds((prev) => {
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
         }
     };
 
@@ -77,6 +93,7 @@ export default function WatchlistPage() {
                             onToggleWatchlist={handleRemoveFromWatchlist}
                             onAddToPlaylist={setPlaylistMedia}
                             onRemove={handleRemoveFromWatchlist}
+                            busy={busyIds.has(`${movie.media_type || 'movie'}:${movie.media_id || movie.movie_id || movie.id}`)}
                         />
                     ))}
                 </div>
