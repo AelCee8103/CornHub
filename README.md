@@ -16,7 +16,9 @@ user data, plus server-side Vercel functions for TMDB requests.
 ## Features
 
 - Discover, search, filter, and inspect TMDB movies.
-- Watch trailers and use the existing VidSrc player.
+- Watch trailers and choose between the VidCore and VidSrc (vidsrc.sh) players.
+- VidCore playback uses a restrictive iframe sandbox for both movies and TV
+  episodes; VidSrc remains unsandboxed for compatibility.
 - Register, sign in, and sign out with Supabase Auth.
 - Create and manage personal watchlists.
 - Create playlists and add or remove movies.

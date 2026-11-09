@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Play, RotateCcw, Server, ShieldCheck } from 'lucide-react';
+import { buildEmbedUrl, getSandboxPolicy } from './vidsrc';
 
-const SERVERS = [
-  { id: 'vidsrc.sh', name: 'Server 1 (vidsrc.sh)' },
-  { id: 'vidsrc.pm', name: 'Server 2 (vidsrc.pm)' },
-  { id: 'vidsrc.net', name: 'Server 3 (vidsrc.net)' },
-  { id: 'vidsrc.xyz', name: 'Server 4 (vidsrc.xyz)' },
+const IFRAME_LOAD_TIMEOUT_MS = 15000;
+
+const SOURCES = [
+  { id: 'vidcore', name: 'VidCore', requiresTmdb: true },
+  { id: 'vidsrc', name: 'VidSrc (vidsrc.sh)', requiresTmdb: false },
 ];
 
 export default function VidSrcPlayer({
@@ -17,28 +18,28 @@ export default function VidSrcPlayer({
   episode,
   onEpisodeComplete,
 }) {
-  const targetId = imdbId || tmdbId;
+  const targetId = tmdbId || imdbId;
   const episodeKey = mediaType === 'tv' && season && episode ? `_${season}_${episode}` : '';
   const storageKey = `vidsrc_progress_${mediaType}_${targetId}${episodeKey}`;
 
-  const [currentServer, setCurrentServer] = useState('vidsrc.sh');
+  const [currentSource, setCurrentSource] = useState(tmdbId ? 'vidcore' : 'vidsrc');
   const [savedProgress, setSavedProgress] = useState(0);
-  const [resumeAt, setResumeAt] = useState(0);
+  const [resumeState, setResumeState] = useState({ key: '', seconds: 0 });
   const [useResume, setUseResume] = useState(true);
-  const [unavailable, setUnavailable] = useState(false);
+  const [loadState, setLoadState] = useState({ url: '', loaded: false, timedOut: false });
+  const [retryNonce, setRetryNonce] = useState(0);
 
-  // Check saved progress on mount
   useEffect(() => {
     if (!targetId) return;
     const progress = localStorage.getItem(storageKey);
     const savedSeconds = progress && Number(progress) > 10 ? Math.floor(Number(progress)) : 0;
-    setTimeout(() => {
+    const timerId = window.setTimeout(() => {
       setSavedProgress(savedSeconds);
-      setResumeAt(savedSeconds);
+      setResumeState({ key: storageKey, seconds: savedSeconds });
     }, 0);
+    return () => window.clearTimeout(timerId);
   }, [targetId, storageKey]);
 
-  // Listen to postMessage player events from VidSrc
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data?.type !== 'PLAYER_EVENT') return;
@@ -61,6 +62,29 @@ export default function VidSrcPlayer({
     return () => window.removeEventListener('message', handleMessage);
   }, [onEpisodeComplete, storageKey]);
 
+  const resumeReady = resumeState.key === storageKey;
+  const resumeAt = resumeReady && useResume ? resumeState.seconds : 0;
+  const embedUrl = resumeReady
+    ? buildEmbedUrl({ provider: currentSource, mediaType, tmdbId, imdbId, season, episode, resumeAt })
+    : '';
+  const playerLoading = resumeReady && loadState.url === embedUrl && !loadState.loaded && !loadState.timedOut;
+  const playerTimedOut = resumeReady && loadState.url === embedUrl && loadState.timedOut;
+
+  useEffect(() => {
+    if (!embedUrl) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setLoadState((state) => (
+        state.url === embedUrl && !state.loaded
+          ? { ...state, timedOut: true }
+          : state.url === embedUrl
+            ? state
+            : { url: embedUrl, loaded: false, timedOut: true }
+      ));
+    }, IFRAME_LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [embedUrl]);
+
   if (!targetId) {
     return (
       <div className="aspect-video w-full flex items-center justify-center bg-neutral-900 text-neutral-400 text-xs">
@@ -68,16 +92,6 @@ export default function VidSrcPlayer({
       </div>
     );
   }
-
-  const queryParams = new URLSearchParams();
-  queryParams.set('autoplay', '1');
-  if (useResume && resumeAt > 10) {
-    queryParams.set('startAt', resumeAt.toString());
-  }
-
-  const embedType = mediaType === 'tv' ? 'tv' : 'movie';
-  const episodePath = mediaType === 'tv' && season && episode ? `/${season}-${episode}` : '';
-  const embedUrl = `https://${currentServer}/embed/${embedType}/${targetId}${episodePath}?${queryParams.toString()}`;
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -88,27 +102,52 @@ export default function VidSrcPlayer({
   const handleResetProgress = () => {
     localStorage.removeItem(storageKey);
     setSavedProgress(0);
-    setResumeAt(0);
+    setResumeState({ key: storageKey, seconds: 0 });
     setUseResume(false);
+  };
+
+  const handleRetry = () => {
+    setLoadState({ url: embedUrl, loaded: false, timedOut: false });
+    setRetryNonce((nonce) => nonce + 1);
   };
 
   return (
     <div className="flex flex-col w-full bg-neutral-950">
       {/* Player Iframe */}
       <div className="relative aspect-video w-full bg-black overflow-hidden shadow-2xl">
-        {unavailable ? (
+        {!resumeReady ? (
           <div className="flex aspect-video w-full items-center justify-center text-sm text-neutral-400">
-            This player is unavailable. Try another source.
+            Preparing player...
           </div>
         ) : <iframe
-          key={`${embedUrl}-${useResume}`}
+          key={`${embedUrl}-${retryNonce}`}
           src={embedUrl}
           title={title || (mediaType === 'tv' ? 'TV Player' : 'Movie Player')}
           className="w-full h-full border-0"
+          sandbox={getSandboxPolicy(currentSource, mediaType)}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
-          onError={() => setUnavailable(true)}
+          onLoad={() => setLoadState({ url: embedUrl, loaded: true, timedOut: false })}
+          onError={() => setLoadState({ url: embedUrl, loaded: false, timedOut: true })}
         ></iframe>}
+        {playerLoading ? (
+          <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-3 text-xs text-neutral-400">
+            Loading player...
+          </div>
+        ) : null}
+        {playerTimedOut ? (
+          <div className="absolute inset-x-0 top-0 flex items-center justify-center gap-2 bg-black/80 px-3 py-2 text-xs text-neutral-300">
+            <span>Player is taking longer than usual.</span>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="rounded bg-neutral-700 px-2 py-1 text-white hover:bg-neutral-600"
+            >
+              Retry
+            </button>
+            <span className="text-neutral-500">or choose another source below</span>
+          </div>
+        ) : null}
       </div>
 
       {/* Player Toolbar / Controls */}
@@ -118,13 +157,17 @@ export default function VidSrcPlayer({
           <Server className="w-3.5 h-3.5 text-amber-400" />
           <span className="font-medium text-neutral-400">Source:</span>
           <select
-            value={currentServer}
-            onChange={(e) => setCurrentServer(e.target.value)}
+            value={currentSource}
+            onChange={(e) => setCurrentSource(e.target.value)}
             className="bg-neutral-800 border border-neutral-700 text-white rounded-md px-2 py-1 text-xs focus:outline-none focus:border-amber-500"
           >
-            {SERVERS.map((srv) => (
-              <option key={srv.id} value={srv.id}>
-                {srv.name}
+            {SOURCES.map((source) => (
+              <option
+                key={source.id}
+                value={source.id}
+                disabled={source.requiresTmdb && !tmdbId}
+              >
+                {source.name}
               </option>
             ))}
           </select>
@@ -150,7 +193,7 @@ export default function VidSrcPlayer({
 
           <div className="hidden sm:flex items-center gap-1 text-emerald-400 text-[11px]">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>VidSrc Stream Ready</span>
+            <span>{currentSource === 'vidcore' ? 'VidCore Stream Ready' : 'VidSrc Stream Ready'}</span>
           </div>
         </div>
       </div>
